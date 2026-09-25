@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 297mm;
+            height: 210mm;
+            overflow: hidden;
+            background-color: #1a0a2e;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+        }
+
+        .certificate {
+            width: 297mm;
+            height: 210mm;
+            padding: 10mm;
+            background: linear-gradient(135deg, #2c105c 0%, #4a1a8a 40%, #6b2fa8 100%);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .inner-border {
+            width: 100%;
+            height: 100%;
+            border: 3px solid #c9a83c;
+            border-radius: 12px;
+            padding: 10mm 14mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            background: rgba(0, 0, 0, 0.15);
+            box-shadow: inset 0 0 60px rgba(106, 47, 168, 0.2);
+        }
+
+        .inner-border::before {
+            content: '';
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            right: 6px;
+            bottom: 6px;
+            border: 1px solid rgba(201, 168, 60, 0.2);
+            border-radius: 8px;
+            pointer-events: none;
+        }
+
+        /* ========== CABEÇALHO CENTRALIZADO ========== */
+        .header {
+            width: 100%;
+            text-align: center;
+            margin-top: 2mm;
+        }
+
+        .header .logo-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: #d4b8ff;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .header .sub-logo-text {
+            font-size: 12px;
+            font-weight: 500;
+            color: #b8a0d4;
+            letter-spacing: 3px;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        .header-divider {
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(to right, transparent, #c9a83c, transparent);
+            margin: 8px auto 0 auto;
+        }
+
+        /* ========== TÍTULO ========== */
+        .title {
+            margin-top: 2mm;
+            width: 100%;
+        }
+
+        .title h1 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 48px;
+            font-weight: 700;
+            color: #f6c445;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            margin: 0;
+        }
+
+        .title-sub {
+            font-size: 16px;
+            font-weight: 300;
+            color: #ffd700;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            margin-top: 2px;
+            opacity: 0.9;
+        }
+
+        /* ========== NOME + LINHA DIVISÓRIA ========== */
+        .divider-with-name {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            margin: 6px auto 0 auto;
+        }
+
+        .divider-with-name .nome {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 38px;
+            font-weight: 700;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            padding: 0 20px 6px 20px;
+            text-shadow: 0 2px 8px rgba(246, 196, 69, 0.15);
+            display: inline-block;
+            background: transparent;
+        }
+
+        .divider-with-name .line {
+            width: 70mm;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #f6c445, transparent);
+            margin: 0 auto;
+        }
+
+        /* ========== CONTEÚDO ========== */
+        .content {
+            max-width: 220mm;
+            margin: 6mm auto 2mm auto;
+        }
+
+        .content .intro {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 18px;
+            color: #d4b8ff;
+            margin-bottom: 2mm;
+            letter-spacing: 1px;
+        }
+
+        .content .text {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 19px;
+            color: #e8d5ff;
+            line-height: 1.8;
+            letter-spacing: 0.5px;
+        }
+
+        .content .text strong {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
+            color: #f6c445;
+            font-size: 18px;
+        }
+
+        .content .text .destaque {
+            color: #ffd700;
+            font-weight: 600;
+        }
+
+        /* ========== ASSINATURAS ========== */
+        .signatures {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-bottom: 2mm;
+            padding: 0 10mm;
+        }
+
+        .signature-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 70mm;
+        }
+
+        .signature-line {
+            width: 100%;
+            border-top: 1px solid #c9a83c;
+            margin-bottom: 4px;
+        }
+
+        .signature-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #ffffff;
+            letter-spacing: 0.5px;
+        }
+
+        .signature-role {
+            font-size: 10px;
+            font-weight: 400;
+            color: #d4b8ff;
+            margin-top: 3px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* ========== RODAPÉ ========== */
+        .footer {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            padding: 0 2mm;
+            margin-top: 2mm;
+        }
+
+        .codigo {
+            font-size: 9px;
+            font-weight: 500;
+            color: #b8a0d4;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .codigo span {
+            color: #ffd700;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="certificate">
+        <div class="inner-border">
+
+            <!-- ======== CABEÇALHO CENTRALIZADO ======== -->
+            <div class="header">
+                <div class="logo-text">Instituto Federal de Pernambuco</div>
+                <div class="sub-logo-text">Campus Igarassu</div>
+            </div>
+
+            <div class="header-divider"></div>
+
+            <!-- ======== TÍTULO ======== -->
+            <div class="title">
+                <h1>Certificado</h1>
+                <div class="title-sub">de participação</div>
+            </div>
+
+            <!-- ======== NOME + LINHA DIVISÓRIA ======== -->
+            <div class="divider-with-name">
+                <span class="nome">{{nome}}</span>
+                <div class="line"></div>
+            </div>
+
+            <!-- ======== CONTEÚDO ======== -->
+            <div class="content">
+                <p class="intro">Certificamos que</p>
+                <p class="text">
+                    participou do evento <strong>{{evento}}</strong>,<br>
+                    realizado em <span class="destaque">{{data}}</span>.
+                </p>
+            </div>
+
+            <!-- ======== ASSINATURAS ======== -->
+            <div class="signatures">
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <div class="signature-name">Liliane Alves</div>
+                    <div class="signature-role">Coordenadora do Evento</div>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <div class="signature-name">Lincoln Tavares</div>
+                    <div class="signature-role">Diretor Geral</div>
+                </div>
+            </div>
+
+            <!-- ======== RODAPÉ ======== -->
+            <div class="footer">
+                <div class="codigo">Código de Autenticação: <span>ID {{certificadoId}}</span></div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>
