@@ -1,16 +1,17 @@
 {
   "expo": {
-    "name": "certievents-mobile",
+    "name": "CertiEvents",
     "slug": "certievents-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
+    "scheme": "certievents",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0A0A1A"
     },
     "ios": {
       "supportsTablet": true
@@ -18,7 +19,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0A0A1A"
       },
       "edgeToEdgeEnabled": true
     },
@@ -30,3 +31,4 @@
     ]
   }
 }
+

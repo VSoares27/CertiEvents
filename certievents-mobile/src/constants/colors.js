@@ -1,0 +1,21 @@
+export const Colors = {
+  background: '#0A0A1A',
+  surface: '#12122A',
+  card: '#1A1A35',
+  cardBorder: '#2A2A50',
+  primary: '#7C5FE6',
+  primaryDark: '#5B3FC2',
+  accent: '#A855F7',
+  accentBlue: '#3B82F6',
+  live: '#EF4444',
+  text: '#FFFFFF',
+  textSecondary: '#9CA3AF',
+  textMuted: '#6B7280',
+  certBadge: '#1E3A5F',
+  certBadgeText: '#60A5FA',
+  presencialBadge: '#1A1A35',
+  presencialBadgeText: '#A855F7',
+  gradientStart: '#7C5FE6',
+  gradientEnd: '#3B82F6',
+};
+
