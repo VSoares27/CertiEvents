@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { registerUser } from '../../src/services/api';
+import { registerUser, checkEmailAvailable } from '../../src/services/api';
 import { Colors } from '../../src/constants/colors';
 
 // Tela responsavel pelo cadastro de novas contas de usuarios
@@ -29,9 +29,44 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Estados para validacoes inline e feedback em tempo real
+  const [emailExists, setEmailExists] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+
+  // Verificacao de e-mail em tempo real com debounce de 500ms
+  useEffect(() => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+      setEmailExists(false);
+      setCheckingEmail(false);
+      return;
+    }
+
+    setCheckingEmail(true);
+    const timer = setTimeout(async () => {
+      try {
+        const result = await checkEmailAvailable(cleanEmail);
+        setEmailExists(!!result?.exists);
+      } catch {
+        // Nao bloqueia a UX caso a verificacao falhe
+      } finally {
+        setCheckingEmail(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [email]);
+
+  // Validacao de senhas identicas em tempo real
+  const passwordMismatch =
+    confirmPassword.length > 0 && password !== confirmPassword;
+
   // Valida os campos do formulario e envia os dados para criacao da conta
   const handleRegister = async () => {
-    if (!fullName.trim() || !email.trim() || !password.trim()) {
+    const cleanFullName = fullName.trim();
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanFullName || !cleanEmail || !password.trim()) {
       Alert.alert('Campos obrigatórios', 'Preencha todos os campos.');
       return;
     }
@@ -46,7 +81,7 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
-      await registerUser({ fullName: fullName.trim(), email: email.trim(), password });
+      await registerUser({ fullName: cleanFullName, email: cleanEmail, password });
       Alert.alert(
         'Conta criada!',
         'Seu cadastro foi realizado com sucesso. Faça login para continuar.',
@@ -107,9 +142,14 @@ export default function RegisterScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>E-mail</Text>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>E-mail</Text>
+                {checkingEmail && (
+                  <ActivityIndicator size="small" color={Colors.primary} style={{ marginLeft: 6 }} />
+                )}
+              </View>
               <TextInput
-                style={styles.input}
+                style={[styles.input, emailExists && styles.inputWarning]}
                 value={email}
                 onChangeText={setEmail}
                 placeholder="seu.email@exemplo.com"
@@ -118,6 +158,10 @@ export default function RegisterScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
+              {/* Aviso inline nao bloqueante se o e-mail ja existe */}
+              {emailExists && (
+                <Text style={styles.warningText}>Este e-mail já está cadastrado no sistema.</Text>
+              )}
             </View>
 
             <View style={styles.inputGroup}>
@@ -148,20 +192,24 @@ export default function RegisterScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Confirmar senha</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, passwordMismatch && styles.inputWarning]}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="Repita sua senha"
                 placeholderTextColor={Colors.textMuted}
                 secureTextEntry={!showPassword}
               />
+              {/* Aviso inline imediato quando as senhas divergem */}
+              {passwordMismatch && (
+                <Text style={styles.warningText}>As senhas digitadas não coincidem.</Text>
+              )}
             </View>
 
             {/* Botao de confirmacao do cadastro */}
             <TouchableOpacity
-              style={[styles.registerBtn, loading && styles.registerBtnDisabled]}
+              style={[styles.registerBtn, (loading || passwordMismatch) && styles.registerBtnDisabled]}
               onPress={handleRegister}
-              disabled={loading}
+              disabled={loading || passwordMismatch}
             >
               {loading ? (
                 <ActivityIndicator size="small" color={Colors.text} />
@@ -232,6 +280,10 @@ const styles = StyleSheet.create({
   },
   form: { gap: 18 },
   inputGroup: { gap: 8 },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   label: {
     color: Colors.textSecondary,
     fontSize: 13,
@@ -246,6 +298,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     color: Colors.text,
     fontSize: 15,
+  },
+  inputWarning: {
+    borderColor: '#EF4444',
+  },
+  warningText: {
+    color: '#EF4444',
+    fontSize: 12,
+    marginTop: -2,
   },
   passwordRow: {
     flexDirection: 'row',
@@ -288,3 +348,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+

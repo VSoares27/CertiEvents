@@ -85,11 +85,29 @@ export async function createEvent(formData) {
   return response.json();
 }
 
+// Verifica a disponibilidade de um e-mail em tempo real
+export async function checkEmailAvailable(email) {
+  const normalized = (email || '').trim().toLowerCase();
+  if (!normalized) return { exists: false };
+  const response = await fetch(`${API_BASE_URL}/auth/check-email?email=${encodeURIComponent(normalized)}`, {
+    headers: defaultHeaders,
+  });
+  if (!response.ok) {
+    return { exists: false };
+  }
+  return response.json();
+}
+
+// Registra um novo usuario no backend
 export async function registerUser({ fullName, email, password }) {
   const response = await fetch(`${API_BASE_URL}/auth/register`, {
     method: 'POST',
     headers: defaultHeaders,
-    body: JSON.stringify({ fullName, email, password }),
+    body: JSON.stringify({
+      fullName: (fullName || '').trim(),
+      email: (email || '').trim().toLowerCase(),
+      password,
+    }),
   });
   const data = await response.json();
   if (!response.ok) {
@@ -98,11 +116,15 @@ export async function registerUser({ fullName, email, password }) {
   return data;
 }
 
+// Autentica o usuario no backend retornando os dados de sessao e o token JWT
 export async function loginUser({ email, password }) {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
     headers: defaultHeaders,
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({
+      email: (email || '').trim().toLowerCase(),
+      password,
+    }),
   });
   const data = await response.json();
   if (!response.ok) {

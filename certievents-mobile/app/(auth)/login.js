@@ -35,7 +35,11 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const result = await loginUser({ email: email.trim(), password });
-      signIn(result.user);
+      const userData = {
+        fullName: result.fullName,
+        email: result.email,
+      };
+      await signIn(userData, result.accessToken);
       router.replace('/(app)');
     } catch (err) {
       Alert.alert('Erro no login', err.message || 'Credenciais inválidas. Tente novamente.');

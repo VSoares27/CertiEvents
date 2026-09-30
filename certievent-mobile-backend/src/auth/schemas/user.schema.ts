@@ -7,9 +7,13 @@ export type UserDocument = HydratedDocument<User>;
 // Configura o schema do Mongoose ativando automaticamente os campos de data de criação e atualização (timestamps)
 @Schema({ timestamps: true })
 export class User {
-  // Armazena o identificador único do usuário no AWS Cognito, sendo obrigatório e único
-  @Prop({ required: true, unique: true })
-  cognitoSub: string;
+  // Armazena o identificador único do usuário no AWS Cognito, sendo opcional para autenticacao local
+  @Prop({ required: false, unique: true, sparse: true })
+  cognitoSub?: string;
+
+  // Armazena o hash criptografado da senha do usuario para autenticacao local
+  @Prop({ required: true })
+  passwordHash: string;
 
   // Armazena o nome completo do usuário, sendo um campo obrigatório
   @Prop({ required: true })

@@ -439,7 +439,7 @@ function EventListCard({ event, index, onPress }) {
 // ── Home Screen ──────────────────────────────────────────────
 export default function HomeScreen() {
   const router = useRouter();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, hasStoredToken } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [events, setEvents] = useState([]);
@@ -472,8 +472,9 @@ export default function HomeScreen() {
     loadEvents();
   };
 
-  const handleParticipate = (event) => {
-    if (isAuthenticated) {
+  const handleParticipate = async (event) => {
+    const hasToken = await hasStoredToken();
+    if (isAuthenticated || hasToken) {
       router.push(`/(app)/event/${event._id}`);
     } else {
       router.push('/(auth)/login');
