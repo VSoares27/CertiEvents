@@ -22,6 +22,22 @@ export class Registration {
   // Armazena a data e hora opcionais em que foi realizado o check-in do participante
   @Prop()
   checkedInAt?: Date;
+
+  // Indica o status da inscricao do participante no evento
+  @Prop({ type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' })
+  status: string;
+
+  // Indica se o participante solicitou o certificado de participacao
+  @Prop({ default: false })
+  certificateRequested: boolean;
+
+  // Indica se o certificado foi emitido pelo administrador
+  @Prop({ default: false })
+  certificateIssued: boolean;
+
+  // Armazena o ID do documento de certificado gerado
+  @Prop()
+  certificateDocId?: string;
 }
 
 // Cria e exporta o schema do Mongoose a partir da classe Registration
