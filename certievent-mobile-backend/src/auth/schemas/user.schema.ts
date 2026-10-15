@@ -26,6 +26,10 @@ export class User {
   // Define o nível de permissão/papel do usuário, aceitando apenas 'user' ou 'admin', com 'user' como padrão
   @Prop({ required: true, enum: ['user', 'admin'], default: 'user' })
   role: string;
+
+  // Armazena a URL/caminho do avatar do usuário (opcional)
+  @Prop({ required: false })
+  avatarUrl?: string;
 }
 
 // Cria e exporta o schema do Mongoose a partir da classe User

@@ -53,6 +53,18 @@ export class Event {
     default: 'upcoming',
   })
   status: string;
+
+  // Data e horario de termino do evento (opcional)
+  @Prop()
+  endDate?: Date;
+
+  // Média das avaliações dos participantes (1-5)
+  @Prop({ default: 0 })
+  ratingAverage: number;
+
+  // Total de avaliações recebidas
+  @Prop({ default: 0 })
+  ratingCount: number;
 }
 
 // Cria e exporta o schema do Mongoose a partir da classe Event

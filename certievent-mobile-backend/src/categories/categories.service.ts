@@ -40,7 +40,7 @@ export class CategoriesService {
       throw new NotFoundException(`Categoria ${id} não encontrada`);
     }
     const category = await this.categoryModel
-      .findByIdAndUpdate(id, updateCategoryDto, { new: true })
+      .findByIdAndUpdate(id, updateCategoryDto, { returnDocument: 'after' })
       .exec();
     if (!category) {
       throw new NotFoundException(`Categoria ${id} não encontrada`);

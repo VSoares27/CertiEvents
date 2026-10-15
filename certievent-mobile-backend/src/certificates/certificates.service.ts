@@ -81,4 +81,21 @@ export class CertificatesService {
     }
     return certificate;
   }
+
+  // Retorna todos os certificados com status 'ready' de um usuário, com dados do evento populados e pontuação por item
+  async getUserCertificates(userId: string) {
+    const docs = await this.certificateModel
+      .find({ userId, status: 'ready' })
+      .populate('eventId', 'name date')
+      .sort({ readyAt: -1 })
+      .exec();
+
+    return docs.map((doc) => ({
+      _id: doc._id,
+      eventId: doc.eventId,
+      status: doc.status,
+      readyAt: doc.readyAt,
+      score: 20,
+    }));
+  }
 }

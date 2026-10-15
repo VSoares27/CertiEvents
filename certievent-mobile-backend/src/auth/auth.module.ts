@@ -5,6 +5,9 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { User, UserSchema } from './schemas/user.schema.js';
+import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import { OptionalJwtAuthGuard } from './guards/optional-jwt-auth.guard.js';
+import { AdminGuard } from './guards/admin.guard.js';
 
 // Modulo responsavel pelas funcionalidades de autenticacao de usuarios
 @Module({
@@ -22,9 +25,9 @@ import { User, UserSchema } from './schemas/user.schema.js';
   ],
   // Registra o controlador com as rotas de autenticacao
   controllers: [AuthController],
-  // Registra o servico responsavel pelas operacoes e regras de negocio de autenticacao
-  providers: [AuthService],
-  // Exporta MongooseModule e JwtModule para modulos que necessitarem validar usuarios ou tokens
-  exports: [MongooseModule, JwtModule, AuthService],
+  // Registra o servico e os guards responsaveis pelas operacoes de autenticacao e autorizacao
+  providers: [AuthService, JwtAuthGuard, OptionalJwtAuthGuard, AdminGuard],
+  // Exporta MongooseModule, JwtModule, AuthService e os guards para uso em outros modulos
+  exports: [MongooseModule, JwtModule, AuthService, JwtAuthGuard, OptionalJwtAuthGuard, AdminGuard],
 })
 export class AuthModule {}

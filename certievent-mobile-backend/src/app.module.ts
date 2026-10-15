@@ -7,6 +7,10 @@ import { AuthModule } from './auth/auth.module.js';
 import { EventsModule } from './events/events.module.js';
 import { CertificatesModule } from './certificates/certificates.module.js';
 import { InternalModule } from './internal/internal.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
+import { AdminModule } from './admin/admin.module.js';
+import { FeaturedModule } from './featured/featured.module.js';
+import { RankingModule } from './ranking/ranking.module.js';
 
 @Module({
   imports: [
@@ -22,6 +26,10 @@ import { InternalModule } from './internal/internal.module.js';
     EventsModule,
     CertificatesModule,
     InternalModule,
+    NotificationsModule,
+    AdminModule,
+    FeaturedModule,
+    RankingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

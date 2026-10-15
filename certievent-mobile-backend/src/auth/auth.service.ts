@@ -92,7 +92,7 @@ export class AuthService {
   }
 
   // Realiza a autenticacao do usuario comparando o hash e gerando o token JWT
-  async login(loginDto: LoginDto): Promise<{ accessToken: string; fullName: string; email: string }> {
+  async login(loginDto: LoginDto): Promise<{ accessToken: string; fullName: string; email: string; role: string }> {
     const { email, password } = loginDto;
     const cleanEmail = (email || '').trim().toLowerCase();
 
@@ -115,15 +115,21 @@ export class AuthService {
       throw new UnauthorizedException(invalidCredentialsMessage);
     }
 
-    // Gera o token de acesso JWT contendo sub e email no payload
-    const payload = { sub: user._id.toString(), email: user.email };
+    // Gera o token de acesso JWT contendo sub, email e role no payload
+    const payload = { sub: user._id.toString(), email: user.email, role: user.role };
     const accessToken = await this.jwtService.signAsync(payload);
 
     return {
       accessToken,
       fullName: user.fullName,
       email: user.email,
+      role: user.role,
     };
+  }
+
+  // Atualiza a URL do avatar do usuário
+  async updateAvatar(userId: string, avatarUrl: string): Promise<void> {
+    await this.userModel.findByIdAndUpdate(userId, { avatarUrl }).exec();
   }
 }
 

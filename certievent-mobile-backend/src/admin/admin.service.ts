@@ -75,17 +75,14 @@ export class AdminService {
 
   // Aprova uma inscricao e envia notificacao ao participante
   async approve(id: string) {
-    // Busca a inscricao antes de atualizar para verificar seu status atual
     const existingReg = await this.registrationModel.findById(id).exec();
     
     if (!existingReg) {
       throw new NotFoundException('Inscrição não encontrada.');
     }
 
-    // Valida se a inscricao ainda pode ser processada
-    if (existingReg.status !== 'pending') {
-      throw new Error(`Inscrição já foi processada com status: ${existingReg.status}`);
-    }
+    // Permite atualizar de qualquer status para approved (inclusive de rejected)
+    const previousStatus = existingReg.status;
 
     const reg = await this.registrationModel
       .findByIdAndUpdate(id, { status: 'approved' }, { returnDocument: 'after' })
@@ -98,18 +95,20 @@ export class AdminService {
     const event = await this.eventModel.findById(new Types.ObjectId(reg.eventId)).exec();
 
     try {
+      const isUpdate = previousStatus !== 'pending';
       await this.notificationsService.createNotification({
         userId: reg.userId,
         type: 'participation_approved',
-        message: `Você está participando do evento ${event?.name ?? reg.eventId}`,
+        message: isUpdate
+          ? `Sua inscrição no evento ${event?.name ?? reg.eventId} foi atualizada para APROVADA.`
+          : `Você está participando do evento ${event?.name ?? reg.eventId}`,
         eventId: reg.eventId,
       });
     } catch (error) {
-      // Rollback: reverte o status da inscricao se a notificacao falhar
-      await this.registrationModel
-        .findByIdAndUpdate(id, { status: 'pending' })
-        .exec();
-      
+      // Rollback apenas se for aprovação inicial (pending→approved)
+      if (existingReg.status === 'pending') {
+        await this.registrationModel.findByIdAndUpdate(id, { status: 'pending' }).exec();
+      }
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Falha ao enviar notificação: ${errorMessage}`);
     }
@@ -119,17 +118,14 @@ export class AdminService {
 
   // Rejeita uma inscricao e envia notificacao ao participante
   async reject(id: string) {
-    // Busca a inscricao antes de atualizar para verificar seu status atual
     const existingReg = await this.registrationModel.findById(id).exec();
     
     if (!existingReg) {
       throw new NotFoundException('Inscrição não encontrada.');
     }
 
-    // Valida se a inscricao ainda pode ser processada
-    if (existingReg.status !== 'pending') {
-      throw new Error(`Inscrição já foi processada com status: ${existingReg.status}`);
-    }
+    // Permite atualizar de qualquer status para rejected (inclusive de approved)
+    const previousStatus = existingReg.status;
 
     const reg = await this.registrationModel
       .findByIdAndUpdate(id, { status: 'rejected' }, { returnDocument: 'after' })
@@ -142,18 +138,20 @@ export class AdminService {
     const event = await this.eventModel.findById(new Types.ObjectId(reg.eventId)).exec();
 
     try {
+      const isUpdate = previousStatus !== 'pending';
       await this.notificationsService.createNotification({
         userId: reg.userId,
         type: 'registration_rejected',
-        message: `Sua solicitação de participação no evento ${event?.name ?? reg.eventId} não foi aprovada`,
+        message: isUpdate
+          ? `Sua inscrição no evento ${event?.name ?? reg.eventId} foi atualizada para REJEITADA.`
+          : `Sua solicitação de participação no evento ${event?.name ?? reg.eventId} não foi aprovada`,
         eventId: reg.eventId,
       });
     } catch (error) {
-      // Rollback: reverte o status da inscricao se a notificacao falhar
-      await this.registrationModel
-        .findByIdAndUpdate(id, { status: 'pending' })
-        .exec();
-      
+      // Rollback apenas se era pending
+      if (existingReg.status === 'pending') {
+        await this.registrationModel.findByIdAndUpdate(id, { status: 'pending' }).exec();
+      }
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Falha ao enviar notificação: ${errorMessage}`);
     }

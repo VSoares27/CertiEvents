@@ -61,4 +61,67 @@ export class PdfService {
       await browser.close();
     }
   }
+
+  // Escapa caracteres HTML especiais para evitar injeção de markup em conteúdo gerado pelo usuário
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  // Gera um relatório PDF em formato de tabela com os dados de participações informados
+  async gerarRelatorio(
+    items: { name: string; event: string; status: string; date: string }[],
+  ): Promise<Buffer> {
+    const rows = items
+      .map(
+        (i) =>
+          `<tr><td>${this.escapeHtml(i.name)}</td><td>${this.escapeHtml(i.event)}</td><td>${this.escapeHtml(i.status)}</td><td>${this.escapeHtml(i.date)}</td></tr>`,
+      )
+      .join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { font-family: Arial, sans-serif; padding: 24px; }
+    h1 { font-size: 18px; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+    th { background-color: #f0f0f0; font-weight: bold; }
+    tr:nth-child(even) { background-color: #fafafa; }
+  </style>
+</head>
+<body>
+  <h1>Relatório de Participações</h1>
+  <table>
+    <thead>
+      <tr><th>Nome</th><th>Evento</th><th>Status</th><th>Data</th></tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+</body>
+</html>`;
+
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'domcontentloaded' });
+
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+      });
+
+      return pdfBuffer as Buffer;
+    } finally {
+      await browser.close();
+    }
+  }
 }

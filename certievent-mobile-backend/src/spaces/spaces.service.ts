@@ -39,7 +39,7 @@ export class SpacesService {
       throw new NotFoundException(`Espaço ${id} não encontrado`);
     }
     const space = await this.spaceModel
-      .findByIdAndUpdate(id, updateSpaceDto, { new: true })
+      .findByIdAndUpdate(id, updateSpaceDto, { returnDocument: 'after' })
       .exec();
     if (!space) {
       throw new NotFoundException(`Espaço ${id} não encontrado`);

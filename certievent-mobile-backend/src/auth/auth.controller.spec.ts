@@ -1,5 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller.js';
+import { AuthService } from './auth.service.js';
+
+// Mock do AuthService com todos os métodos usados pelo controller
+const mockAuthService = {
+  checkEmail: vi.fn(),
+  register: vi.fn(),
+  login: vi.fn(),
+};
 
 // Inicia o bloco de suíte de testes unitários para a classe AuthController
 describe('AuthController', () => {
@@ -9,6 +17,9 @@ describe('AuthController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
+      providers: [
+        { provide: AuthService, useValue: mockAuthService },
+      ],
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
