@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+﻿import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,9 @@ import {
   StyleSheet,
   RefreshControl,
   ImageBackground,
-  Platform,
+  Image,
+  Modal,
+  Animated,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import {
@@ -21,6 +23,10 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import { fetchEvents } from '../../src/services/api';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { API_BASE_URL } from '../../src/constants/api';
+import { AppLogo } from '../../src/components/AppLogo';
+import { useAudioPlayer } from 'expo-audio';
+
+const notificationSound = require('../../assets/sounds/notification.mp3');
 
 // ── Paleta ───────────────────────────────────────────────────
 const C = {
@@ -28,9 +34,11 @@ const C = {
   surface: '#0F0E17',
   navBg: '#0B0A12',
   card: '#13111F',
+  cardHover: '#1A1830',
   cardBorder: '#1F1D2E',
   primary: '#7C5FE6',
   primaryDark: '#5B3FD6',
+  accent: '#A78BFA',
   gradientStart: '#8B5CF6',
   gradientEnd: '#6366F1',
   text: '#FFFFFF',
@@ -74,6 +82,25 @@ function formatDate(dateString) {
   return `${day} ${month} ${year}  ·  ${hour}:${min}`;
 }
 
+function formatDateRange(dateString, endDateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const day = String(date.getDate()).padStart(2, '0');
+  const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  const hour = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  const start = `${hour}:${min}`;
+  if (endDateString) {
+    const end = new Date(endDateString);
+    const eHour = String(end.getHours()).padStart(2, '0');
+    const eMin = String(end.getMinutes()).padStart(2, '0');
+    return `${day} ${month} ${year}  ·  ${start} às ${eHour}:${eMin}`;
+  }
+  return `${day} ${month} ${year}  ·  ${start}`;
+}
+
 function getStatusLabel(status) {
   switch (status) {
     case 'ongoing': return 'AO VIVO';
@@ -81,6 +108,22 @@ function getStatusLabel(status) {
     case 'finished': return 'ENCERRADO';
     default: return 'PRESENCIAL';
   }
+}
+
+// Verifica pelo horário atual se o evento está acontecendo agora
+function computeEventStatus(event) {
+  const now = new Date();
+  const start = event.date ? new Date(event.date) : null;
+  if (!start) return event.status || 'upcoming';
+
+  // Fim: usa endDate se existir, senão assume +2h após o início
+  const end = event.endDate
+    ? new Date(event.endDate)
+    : new Date(start.getTime() + 2 * 60 * 60 * 1000);
+
+  if (now >= start && now <= end) return 'ongoing';
+  if (now > end) return 'finished';
+  return 'upcoming';
 }
 
 // ── Componente: Risco duplo no canto superior direito ────────
@@ -126,6 +169,7 @@ function AccentStreak({ color, size = 70 }) {
             width: 60,
             height: 2,      // Espessura maior
             borderRadius: 2,
+            opacity: 0.9,
           }}
         />
 
@@ -150,45 +194,6 @@ function AccentStreak({ color, size = 70 }) {
 }
 
 // ── LOGO ─────────────────────────────────────────────────────
-function LogoMark({ size = 22 }) {
-  return (
-    <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
-      <View
-        style={{
-          position: 'absolute', top: 0, right: 0, width: 0, height: 0,
-          borderStyle: 'solid',
-          borderRightWidth: size * 0.55,
-          borderTopWidth: size * 0.85,
-          borderRightColor: 'transparent',
-          borderTopColor: '#8B5CF6',
-          transform: [{ rotate: '15deg' }],
-        }}
-      />
-      <View
-        style={{
-          position: 'absolute', bottom: 0, left: 0, width: 0, height: 0,
-          borderStyle: 'solid',
-          borderLeftWidth: size * 0.45,
-          borderBottomWidth: size * 0.75,
-          borderLeftColor: 'transparent',
-          borderBottomColor: '#7C5FE6',
-          transform: [{ rotate: '-10deg' }],
-        }}
-      />
-      <View
-        style={{
-          position: 'absolute', top: size * 0.25, left: size * 0.15,
-          width: size * 0.3, height: size * 0.3,
-          backgroundColor: '#A78BFA',
-          transform: [{ rotate: '45deg' }],
-          opacity: 0.9,
-          borderRadius: 1,
-        }}
-      />
-    </View>
-  );
-}
-
 // ── Ícone com gradiente ──────────────────────────────────────
 function GradientIcon({ name, size, active }) {
   if (!active) {
@@ -214,7 +219,8 @@ function GradientIcon({ name, size, active }) {
 }
 
 // ── Badge ────────────────────────────────────────────────────
-function StatusBadge({ status }) {
+function StatusBadge({ event }) {
+  const status = computeEventStatus(event);
   const isLive = status === 'ongoing';
   return (
     <View style={[styles.badge, isLive ? styles.badgeLive : styles.badgePresencial]}>
@@ -234,12 +240,40 @@ function getImageUrl(imageUrl, fallback) {
   return `${API_BASE_URL}/uploads/${imageUrl}`;
 }
 
-// ── Featured Card ────────────────────────────────────────────
-function FeaturedEventCard({ event, onParticipate }) {
-  const bannerSource = getImageUrl(event.imageUrl, FALLBACK_BANNER);
-  const categoryName = event.categoryId?.name || event.categoryId;
+// ── Hook de animação de pulso suave ──────────────────────────
+function usePulse() {
+  const scale = React.useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scale, { toValue: 1.035, duration: 1800, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 1, duration: 1800, useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [scale]);
+  return scale;
+}
+
+// ── Featured Banner (independente de eventos — editavel pelo admin) ──
+function FeaturedBannerCard({ banner, isAdmin, onEdit }) {
+  const bannerSource = getImageUrl(banner.imageUrl, FALLBACK_BANNER);
+  // Verifica se o destaque esta "ao vivo" pelo horario
+  const now = new Date();
+  const start = banner.date ? new Date(banner.date) : null;
+  const end = banner.endDate
+    ? new Date(banner.endDate)
+    : (start ? new Date(start.getTime() + 2 * 60 * 60 * 1000) : null);
+  const isLive = start && end && now >= start && now <= end;
 
   return (
+    <LinearGradient
+      colors={[C.gradientStart, C.gradientEnd]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.featuredCardBorder}
+    >
     <View style={styles.featuredCard}>
       <ImageBackground
         source={{ uri: bannerSource }}
@@ -247,22 +281,88 @@ function FeaturedEventCard({ event, onParticipate }) {
         imageStyle={{ borderRadius: 18 }}
       >
         <LinearGradient
-          colors={['rgba(8,7,13,0.15)', 'rgba(8,7,13,0.55)', 'rgba(8,7,13,0.98)']}
-          locations={[0, 0.5, 1]}
+          colors={['rgba(8,7,13,0.45)', 'rgba(8,7,13,0.10)', 'rgba(8,7,13,0.70)', 'rgba(8,7,13,0.98)']}
+          locations={[0, 0.25, 0.6, 1]}
+          style={styles.featuredGradient}
+        />
+
+        {/* Topo: badge AO VIVO + botao editar (admin) */}
+        <View style={styles.featuredTopRow}>
+          {isLive ? (
+            <View style={[styles.badge, styles.badgeLive]}>
+              <View style={styles.liveDot} />
+              <Text style={[styles.badgeText, styles.badgeTextLive]}>AO VIVO</Text>
+            </View>
+          ) : <View />}
+          {isAdmin && (
+            <TouchableOpacity
+              style={styles.editIconBtn}
+              onPress={onEdit}
+              activeOpacity={0.75}
+              accessibilityLabel="Editar destaque"
+            >
+              <Ionicons name="pencil" size={14} color="#FFF" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Conteudo: titulo + metadata */}
+        <View style={styles.featuredContent}>
+          <Text style={styles.featuredTitle}>{banner.title || 'Destaque'}</Text>
+          {banner.subtitle ? (
+            <Text style={styles.featuredSubtitle}>{banner.subtitle}</Text>
+          ) : null}
+          <View style={styles.featuredMeta}>
+            {banner.date ? (
+              <View style={styles.metaRow}>
+                <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.75)" />
+                <Text style={styles.metaText}>
+                  {formatDateRange(banner.date, banner.endDate)}
+                </Text>
+              </View>
+            ) : null}
+            {banner.location ? (
+              <View style={styles.metaRow}>
+                <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.75)" />
+                <Text style={styles.metaText}>{banner.location}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </ImageBackground>
+    </View>
+    </LinearGradient>
+  );
+}
+
+// ── Featured Card (evento) ───────────────────────────────────
+function FeaturedEventCard({ event, onParticipate }) {
+  const bannerSource = getImageUrl(event.imageUrl, FALLBACK_BANNER);
+  const categoryName = event.categoryId?.name || event.categoryId;
+  const pulseScale = usePulse();
+
+  return (
+    <LinearGradient
+      colors={[C.gradientStart, C.gradientEnd]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.featuredCardBorder}
+    >
+    <View style={styles.featuredCard}>
+      <ImageBackground
+        source={{ uri: bannerSource }}
+        style={styles.featuredImage}
+        imageStyle={{ borderRadius: 18 }}
+      >
+        <LinearGradient
+          colors={['rgba(8,7,13,0.55)', 'rgba(8,7,13,0.10)', 'rgba(8,7,13,0.60)', 'rgba(8,7,13,0.98)']}
+          locations={[0, 0.25, 0.6, 1]}
           style={styles.featuredGradient}
         />
         <View style={styles.featuredTopRow}>
-          <StatusBadge status={event.status} />
-          <View style={styles.featuredTags}>
-            {categoryName ? (
-              <Text style={[styles.featuredTagText, { color: '#A78BFA' }]}>
-                {categoryName.toUpperCase()}
-              </Text>
-            ) : null}
-            <Text style={styles.featuredTagText}>IDEIAS</Text>
-            <Text style={styles.featuredTagText}>PROCESSOS</Text>
-            <Text style={styles.featuredTagText}>RESULTADOS</Text>
-          </View>
+          {/* Badge AO VIVO só quando o evento estiver acontecendo */}
+          {computeEventStatus(event) === 'ongoing' && <StatusBadge event={event} />}
+          <View style={{ flex: 1 }} />
         </View>
         <View style={styles.featuredContent}>
           <Text style={styles.featuredEventNumber}>
@@ -272,7 +372,7 @@ function FeaturedEventCard({ event, onParticipate }) {
           <View style={styles.featuredMeta}>
             <View style={styles.metaRow}>
               <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.7)" />
-              <Text style={styles.metaText}>{formatDate(event.date)}</Text>
+              <Text style={styles.metaText}>{formatDateRange(event.date, event.endDate)}</Text>
             </View>
             {event.location ? (
               <View style={styles.metaRow}>
@@ -280,30 +380,42 @@ function FeaturedEventCard({ event, onParticipate }) {
                 <Text style={styles.metaText}>{event.location}</Text>
               </View>
             ) : null}
+            {event.ratingCount > 0 && (
+              <View style={styles.metaRow}>
+                <Ionicons name="star" size={12} color="#F59E0B" />
+                <Text style={[styles.metaText, { color: '#10B981', fontWeight: '700' }]}>
+                  {Math.round((event.ratingAverage / 5) * 100)}% aprovação
+                </Text>
+                <Text style={styles.metaText}>({event.ratingCount} votos)</Text>
+              </View>
+            )}
           </View>
           <TouchableOpacity
             onPress={() => onParticipate(event)}
-            activeOpacity={0.85}
+            activeOpacity={0.75}
             style={styles.featuredBtnWrapper}
           >
-            <LinearGradient
-              colors={[C.gradientStart, C.gradientEnd]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.featuredBtn}
-            >
-              <Text style={styles.featuredBtnText}>PARTICIPAR</Text>
-              <Ionicons name="arrow-forward" size={15} color="#FFF" style={{ marginLeft: 6 }} />
-            </LinearGradient>
+            <Animated.View style={{ transform: [{ scale: pulseScale }] }}>
+              <LinearGradient
+                colors={[C.gradientStart, C.gradientEnd]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.featuredBtn}
+              >
+                <Text style={styles.featuredBtnText}>PARTICIPAR</Text>
+              </LinearGradient>
+            </Animated.View>
           </TouchableOpacity>
         </View>
       </ImageBackground>
     </View>
+    </LinearGradient>
   );
 }
 
 // ── List Card ────────────────────────────────────────────────
 function EventListCard({ event, index, onPress }) {
+  const pulseScale = usePulse();
   const thumbSource = getImageUrl(
     event.imageUrl,
     FALLBACK_THUMBS[index % FALLBACK_THUMBS.length]
@@ -340,7 +452,7 @@ function EventListCard({ event, index, onPress }) {
           #{String(index + 1).padStart(2, '0')}
         </Text>
         <Text style={styles.eventCardSlash}>//</Text>
-        <Text style={styles.eventCardTitle} numberOfLines={1}>
+        <Text style={styles.eventCardTitle}>
           {event.name?.toUpperCase()}
         </Text>
       </View>
@@ -395,7 +507,7 @@ function EventListCard({ event, index, onPress }) {
         <View style={styles.eventCardInfoCol}>
           <Text style={styles.eventCardInfoLabel}>HORÁRIO</Text>
           <Text style={styles.eventCardInfoValue}>
-            {hour}:{min} BRT
+            {hour}:{min}{event.endDate ? ` - ${String(new Date(event.endDate).getHours()).padStart(2,'0')}:${String(new Date(event.endDate).getMinutes()).padStart(2,'0')}` : ''} BRT
           </Text>
         </View>
         <View style={styles.eventCardInfoDivider} />
@@ -405,20 +517,29 @@ function EventListCard({ event, index, onPress }) {
             {event.location?.toUpperCase() || 'IFPE / IGARASSU'}
           </Text>
         </View>
+        {event.ratingCount > 0 && (
+          <>
+            <View style={styles.eventCardInfoDivider} />
+            <View style={styles.eventCardInfoCol}>
+              <Text style={styles.eventCardInfoLabel}>APROVAÇÃO</Text>
+              <Text style={[styles.eventCardInfoValue, { color: '#10B981' }]}>
+                {Math.round((event.ratingAverage / 5) * 100)}%
+              </Text>
+            </View>
+          </>
+        )}
       </View>
 
       {/* ── LOCAL (dinâmico: Espaço cadastrado) ────── */}
       <View style={styles.eventCardLocationRow}>
-        <Text style={styles.eventCardLocationLine}>
-          LOCAL:  {displayLocal}
-        </Text>
-        <View style={styles.eventCardDashedLine} />
+        <Text style={styles.eventCardLocationLabel}>LOCAL:</Text>
+        <Text style={styles.eventCardLocationValue}>{displayLocal}</Text>
       </View>
 
       {/* ── BOTÃO ─────────────────────────────────── */}
       <View style={styles.eventCardBtnRow}>
         <TouchableOpacity
-          activeOpacity={0.85}
+          activeOpacity={0.75}
           onPress={() => onPress(event)}
           style={styles.eventCardBtnWrapper}
         >
@@ -439,19 +560,60 @@ function EventListCard({ event, index, onPress }) {
 // ── Home Screen ──────────────────────────────────────────────
 export default function HomeScreen() {
   const router = useRouter();
-  const { isAuthenticated, user, hasStoredToken } = useAuth();
+  const { isAuthenticated, user, hasStoredToken, getToken } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [events, setEvents] = useState([]);
+  const [featuredBanner, setFeaturedBanner] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifModal, setNotifModal] = useState(false);
+
+  // Som e animação de balanço do sino ao chegar notificação nova
+  const notificationPlayer = useAudioPlayer(notificationSound);
+  const bellShake = React.useRef(new Animated.Value(0)).current;
+  const prevUnreadCount = React.useRef(0);
+  const hasLoadedNotifOnce = React.useRef(false);
+
+  const triggerBellAlert = useCallback(() => {
+    // Som
+    try {
+      notificationPlayer.seekTo(0);
+      notificationPlayer.play();
+    } catch { /* ignora falha de audio (ex: web sem interação do usuário) */ }
+
+    // Animação de balanço (shake) do ícone do sino — roda em loop por ~2s
+    bellShake.setValue(0);
+    const oneShake = Animated.sequence([
+      Animated.timing(bellShake, { toValue: 1, duration: 90, useNativeDriver: true }),
+      Animated.timing(bellShake, { toValue: -1, duration: 90, useNativeDriver: true }),
+      Animated.timing(bellShake, { toValue: 1, duration: 90, useNativeDriver: true }),
+      Animated.timing(bellShake, { toValue: -1, duration: 90, useNativeDriver: true }),
+      Animated.timing(bellShake, { toValue: 0, duration: 90, useNativeDriver: true }),
+    ]);
+    // Cada ciclo dura 450ms; 5 repetições ≈ 2.25s de balanço contínuo
+    Animated.loop(oneShake, { iterations: 5 }).start();
+  }, [notificationPlayer, bellShake]);
 
   const loadEvents = useCallback(async () => {
     try {
       setError(null);
       const data = await fetchEvents();
       setEvents(data);
+      // Busca o banner de destaque customizado (independente)
+      try {
+        const res = await fetch(`${API_BASE_URL}/featured`, {
+          headers: { 'bypass-tunnel-reminder': 'true' },
+        });
+        if (res.ok) {
+          const bannerData = await res.json();
+          setFeaturedBanner(bannerData || null);
+        }
+      } catch { /* sem destaque — ok */ }
     } catch (err) {
       setError('Não foi possível carregar os eventos.');
       console.error('Erro ao buscar eventos:', err);
@@ -461,9 +623,13 @@ export default function HomeScreen() {
     }
   }, []);
 
+  // Cache buster para o avatar — atualiza ao focar a tela
+  const [avatarCacheBuster, setAvatarCacheBuster] = useState(Date.now());
+
   useFocusEffect(
     useCallback(() => {
       loadEvents();
+      setAvatarCacheBuster(Date.now()); // força recarregar foto de perfil
     }, [loadEvents])
   );
 
@@ -471,6 +637,49 @@ export default function HomeScreen() {
     setRefreshing(true);
     loadEvents();
   };
+
+  // Re-renderiza a cada 60s para atualizar os status calculados por horário
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => forceUpdate((n) => n + 1), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadNotifications = useCallback(async () => {
+    if (!isAuthenticated) return;
+    const token = await getToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/notifications`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'bypass-tunnel-reminder': 'true',
+          'Authorization': 'Bearer ' + token,
+        },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const newUnread = data.unreadCount ?? 0;
+      setNotifications(data.notifications ?? []);
+      setUnreadCount(newUnread);
+      // Dispara som + balanço do sino: na primeira carga se já houver não lidas,
+      // ou em qualquer carga posterior em que o total de não lidas aumentar
+      const isFirstLoad = !hasLoadedNotifOnce.current;
+      if ((isFirstLoad && newUnread > 0) || (!isFirstLoad && newUnread > prevUnreadCount.current)) {
+        triggerBellAlert();
+      }
+      hasLoadedNotifOnce.current = true;
+      prevUnreadCount.current = newUnread;
+    } catch {
+      // silently ignore notification polling errors
+    }
+  }, [isAuthenticated, getToken, triggerBellAlert]);
+
+  useEffect(() => {
+    loadNotifications();
+    const intervalId = setInterval(loadNotifications, 30000);
+    return () => clearInterval(intervalId);
+  }, [loadNotifications]);
 
   const handleParticipate = async (event) => {
     const hasToken = await hasStoredToken();
@@ -481,8 +690,39 @@ export default function HomeScreen() {
     }
   };
 
-  const featuredEvent = events.find((e) => e.status === 'ongoing') || events[0];
-  const upcomingEvents = events.filter((e) => e !== featuredEvent);
+  // Seleciona o evento em destaque:
+  // 1. Prioriza eventos "ao vivo" (acontecendo agora)
+  // 2. Se nenhum ao vivo, pega o próximo evento futuro mais próximo
+  // 3. Eventos que já acabaram não aparecem no destaque
+  const now = new Date();
+  
+  const liveEvent = events.find((e) => !e.deleted && e.status !== 'deleted' && computeEventStatus(e) === 'ongoing');
+  
+  const futureEvents = events
+    .filter((e) => {
+      if (e.deleted === true || e.status === 'deleted') return false;
+      const status = computeEventStatus(e);
+      return status === 'upcoming'; // Só eventos que ainda não começaram
+    })
+    .sort((a, b) => new Date(a.date) - new Date(b.date)); // Ordena pelo mais próximo
+  
+  const featuredEvent = liveEvent || futureEvents[0] || events[0];
+  
+  // Próximos eventos: inclui todos (quando houver banner, nenhum evento é "destaque")
+  // Exclui o featuredEvent apenas se não houver banner customizado
+  const upcomingEvents = events.filter((e) => {
+    if (e.deleted === true || e.status === 'deleted') return false;
+    if (!featuredBanner && e === featuredEvent) return false;
+    const status = computeEventStatus(e);
+    return status !== 'finished';
+  });
+
+  // Paginação de próximos eventos
+  const EVENTS_PAGE_SIZE = 6;
+  const [eventsPage, setEventsPage] = React.useState(1);
+  const eventsTotalPages = Math.ceil(upcomingEvents.length / EVENTS_PAGE_SIZE);
+  const paginatedEvents = upcomingEvents.slice((eventsPage - 1) * EVENTS_PAGE_SIZE, eventsPage * EVENTS_PAGE_SIZE);
+  
   const bottomInset = insets.bottom;
 
   if (loading) {
@@ -517,38 +757,69 @@ export default function HomeScreen() {
           {/* ── Header ───────────────────────── */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <View style={styles.logoRow}>
-                <LogoMark size={22} />
-                <View>
-                  <Text style={styles.logoText}>CERTIEVENT™</Text>
-                  <Text style={styles.logoTagline}>PLATAFORMA DE EVENTOS</Text>
-                </View>
-              </View>
+              <AppLogo size={30} textSize={16} tagline="PLATAFORMA DE EVENTOS" />
             </View>
             <View style={styles.headerRight}>
+              {/* Favoritos */}
               <TouchableOpacity
                 style={styles.iconBtn}
-                onPress={() => router.push('/(app)/create-event')}
-                accessibilityLabel="Cadastrar Evento"
+                onPress={() => router.push('/(app)/favorites')}
+                activeOpacity={0.75}
+                accessibilityLabel="Favoritos"
               >
-                <Ionicons name="add" size={22} color={C.primary} />
+                <Ionicons name="heart-outline" size={18} color={C.text} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Ionicons name="notifications-outline" size={18} color={C.text} />
+              {/* Notificações */}
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={() => setNotifModal(true)}
+                activeOpacity={0.75}
+                accessibilityLabel="Notificações"
+              >
+                <Animated.View
+                  style={{
+                    transform: [{
+                      rotate: bellShake.interpolate({
+                        inputRange: [-1, 0, 1],
+                        outputRange: ['-18deg', '0deg', '18deg'],
+                      }),
+                    }],
+                  }}
+                >
+                  <Ionicons name="notifications-outline" size={18} color={C.text} />
+                </Animated.View>
+                {unreadCount > 0 && (
+                  <View style={styles.notifBadge}>
+                    <Text style={styles.notifBadgeText}>
+                      {unreadCount > 99 ? '99+' : String(unreadCount)}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
+              {/* Avatar / Perfil */}
               <TouchableOpacity
                 style={styles.avatarBtn}
-                onPress={() => !isAuthenticated && router.push('/(auth)/login')}
+                activeOpacity={0.75}
+                onPress={() => isAuthenticated ? router.push('/(app)/profile') : router.push('/(auth)/login')}
               >
                 <LinearGradient
                   colors={[C.gradientStart, C.gradientEnd]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={styles.avatarGradient}
+                  style={styles.avatarBorder}
                 >
-                  <Text style={styles.avatarText}>
-                    {isAuthenticated ? user?.fullName?.[0]?.toUpperCase() : '?'}
-                  </Text>
+                  {isAuthenticated && user?.avatarUrl ? (
+                    <Image
+                      source={{ uri: (user.avatarUrl.startsWith('http') ? user.avatarUrl : `${API_BASE_URL}/uploads/${user.avatarUrl}`) + `?t=${avatarCacheBuster}` }}
+                      style={styles.avatarImage}
+                    />
+                  ) : (
+                    <View style={styles.avatarInner}>
+                      <Text style={styles.avatarText}>
+                        {isAuthenticated ? user?.fullName?.[0]?.toUpperCase() : '?'}
+                      </Text>
+                    </View>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -556,43 +827,35 @@ export default function HomeScreen() {
 
           {/* ── Greeting ─────────────────────── */}
           <View style={styles.greetingBlock}>
-            <Text style={styles.greetingText}>
-              Olá,{' '}
-              <Text style={styles.greetingName}>
-                {isAuthenticated ? user?.fullName?.split(' ')[0] : 'Visitante'}!
+            <View style={styles.greetingRow}>
+              <Text style={styles.greetingText}>
+                Olá,{' '}
+                <Text style={styles.greetingName}>
+                  {isAuthenticated ? user?.fullName?.split(' ')[0] : 'Visitante'}!
+                </Text>
               </Text>
-            </Text>
+              <TouchableOpacity
+                onPress={() => router.push('/(app)/ranking')}
+                activeOpacity={0.75}
+                style={styles.rankingPillBtn}
+              >
+                <LinearGradient
+                  colors={[C.gradientStart, C.gradientEnd]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.rankingPill}
+                >
+                  <Ionicons name="trophy-outline" size={13} color="#FFF" />
+                  <Text style={styles.rankingPillText}>Ranking</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
             <Text style={styles.greetingSubtitle}>
               Conecte-se, aprenda e conquiste seus certificados.
             </Text>
           </View>
 
-          {/* ── Stats ────────────────────────── */}
-          <View style={styles.statsRow}>
-            <View style={styles.statsBox}>
-              <View style={styles.statItem}>
-                <View style={styles.statIconWrapper}>
-                  <Ionicons name="calendar-outline" size={14} color={C.primary} />
-                </View>
-                <View>
-                  <Text style={styles.statNumber}>{events.length}</Text>
-                  <Text style={styles.statLabel}>eventos disponíveis</Text>
-                </View>
-              </View>
 
-              <View style={styles.statDivider} />
-
-              <View style={styles.statItem}>
-                <View style={styles.statIconWrapper}>
-                  <Ionicons name="trophy-outline" size={14} color={C.primary} />
-                </View>
-                <View>
-                  <Text style={styles.statNumber}>0</Text>
-                  <Text style={styles.statLabel}>certificados conquistados</Text>
-                </View>
-              </View>
-            </View>
-          </View>
 
           {/* ── Erro ─────────────────────────── */}
           {error ? (
@@ -605,8 +868,30 @@ export default function HomeScreen() {
           ) : null}
 
           {/* ── Featured ─────────────────────── */}
-          {featuredEvent ? (
-            <FeaturedEventCard event={featuredEvent} onParticipate={handleParticipate} />
+          {featuredBanner ? (
+            <FeaturedBannerCard
+              banner={featuredBanner}
+              isAdmin={user?.role === 'admin'}
+              onEdit={() => router.push('/(app)/admin/featured')}
+            />
+          ) : user?.role === 'admin' ? (
+            // Admin sem destaque criado: card convite para criar
+            <TouchableOpacity
+              style={styles.featuredEmptyCard}
+              onPress={() => router.push('/(app)/admin/featured')}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="add-circle-outline" size={38} color={C.primary} />
+              <Text style={styles.featuredEmptyTitle}>Criar destaque</Text>
+              <Text style={styles.featuredEmptySubtitle}>
+                Adicione um banner promocional no topo da tela inicial
+              </Text>
+            </TouchableOpacity>
+          ) : featuredEvent ? (
+            <FeaturedEventCard
+              event={featuredEvent}
+              onParticipate={handleParticipate}
+            />
           ) : (
             !error && (
               <View style={styles.emptyBox}>
@@ -618,43 +903,49 @@ export default function HomeScreen() {
           {/* ── Próximos ─────────────────────── */}
           {upcomingEvents.length > 0 ? (
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>PRÓXIMOS EVENTOS</Text>
-              <TouchableOpacity>
-                <Text style={styles.sectionLink}>VER TODOS →</Text>
-              </TouchableOpacity>
+              <View style={styles.sectionTitleRow}>
+                <View style={styles.sectionDot} />
+                <Text style={styles.sectionTitle}>PRÓXIMOS EVENTOS</Text>
+              </View>
             </View>
           ) : null}
 
-          {upcomingEvents.map((event, idx) => (
+          {paginatedEvents.map((event, idx) => (
             <EventListCard
               key={event._id}
               event={event}
-              index={idx}
+              index={(eventsPage - 1) * EVENTS_PAGE_SIZE + idx}
               onPress={handleParticipate}
             />
           ))}
 
-          {/* ── Cert Banner ──────────────────── */}
-          <View style={styles.certBanner}>
-            <LinearGradient
-              colors={['rgba(124,95,230,0.18)', 'rgba(99,102,241,0.10)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.certBannerIcon}
-            >
-              <Ionicons name="ribbon-outline" size={22} color={C.primary} />
-            </LinearGradient>
-            <View style={styles.certBannerContent}>
-              <Text style={styles.certBannerLabel}>CERTIFICAÇÃO</Text>
-              <Text style={styles.certBannerTitle}>Auto-homologada</Text>
-              <Text style={styles.certBannerDesc}>
-                Garanta seu certificado de participação de forma rápida e simples.
-              </Text>
+          {/* ── Paginação Próximos Eventos ── */}
+          {eventsTotalPages > 1 && (
+            <View style={styles.pagination}>
+              <TouchableOpacity style={[styles.pageBtn, eventsPage === 1 && styles.pageBtnDisabled]} onPress={() => setEventsPage(1)} disabled={eventsPage === 1}>
+                <Ionicons name="play-skip-back" size={12} color={eventsPage === 1 ? C.textMuted : C.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.pageBtn, eventsPage === 1 && styles.pageBtnDisabled]} onPress={() => setEventsPage(p => Math.max(1, p - 1))} disabled={eventsPage === 1}>
+                <Ionicons name="chevron-back" size={14} color={eventsPage === 1 ? C.textMuted : C.primary} />
+              </TouchableOpacity>
+              {Array.from({ length: eventsTotalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === eventsTotalPages || Math.abs(p - eventsPage) <= 1)
+                .reduce((acc, p, idx2, arr) => { if (idx2 > 0 && p - arr[idx2 - 1] > 1) acc.push('...'); acc.push(p); return acc; }, [])
+                .map((p, i) => p === '...' ? (
+                  <Text key={`e${i}`} style={styles.pageEllipsis}>…</Text>
+                ) : (
+                  <TouchableOpacity key={p} style={[styles.pageBtn, p === eventsPage && styles.pageBtnActive]} onPress={() => setEventsPage(p)}>
+                    <Text style={[styles.pageBtnText, p === eventsPage && styles.pageBtnTextActive]}>{p}</Text>
+                  </TouchableOpacity>
+                ))}
+              <TouchableOpacity style={[styles.pageBtn, eventsPage === eventsTotalPages && styles.pageBtnDisabled]} onPress={() => setEventsPage(p => Math.min(eventsTotalPages, p + 1))} disabled={eventsPage === eventsTotalPages}>
+                <Ionicons name="chevron-forward" size={14} color={eventsPage === eventsTotalPages ? C.textMuted : C.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.pageBtn, eventsPage === eventsTotalPages && styles.pageBtnDisabled]} onPress={() => setEventsPage(eventsTotalPages)} disabled={eventsPage === eventsTotalPages}>
+                <Ionicons name="play-skip-forward" size={12} color={eventsPage === eventsTotalPages ? C.textMuted : C.primary} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity>
-              <Text style={styles.certBannerLink}>SAIBA MAIS →</Text>
-            </TouchableOpacity>
-          </View>
+          )}
 
           <View style={{ height: 24 }} />
         </View>
@@ -668,28 +959,111 @@ export default function HomeScreen() {
         ]}
       >
         <View style={styles.bottomNavInner}>
-          <TouchableOpacity style={styles.navItem}>
-            <GradientIcon name="home" size={20} active />
+          {/* Registrar — admin vê botão ativo, outros veem desabilitado/vazio */}
+          <TouchableOpacity
+            style={styles.navItem}
+            activeOpacity={isAuthenticated && user?.role === 'admin' ? 0.75 : 1}
+            onPress={() => isAuthenticated && user?.role === 'admin' && router.push('/(app)/create-event')}
+            accessibilityLabel="Registrar Evento"
+          >
+            <GradientIcon name="add-circle-outline" size={20} active={isAuthenticated && user?.role === 'admin'} />
+            <Text style={isAuthenticated && user?.role === 'admin' ? styles.navLabel : styles.navLabelDisabled}>
+              Registrar
+            </Text>
+          </TouchableOpacity>
+
+          {/* Início — centro */}
+          <TouchableOpacity style={styles.navItem} onPress={() => router.replace('/(app)')} activeOpacity={0.75}>
+            <View style={styles.navActiveGlow}>
+              <GradientIcon name="home" size={22} active />
+            </View>
             <Text style={styles.navLabelActive}>Início</Text>
             <View style={styles.navActiveIndicator} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.navItem}>
-            <GradientIcon name="calendar-outline" size={20} />
-            <Text style={styles.navLabel}>Agenda</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navItem}>
-            <GradientIcon name="grid-outline" size={20} />
-            <Text style={styles.navLabel}>Meus Eventos</Text>
-          </TouchableOpacity>
+
+          {/* Gestão — admin vê ativo, outros veem desabilitado */}
           <TouchableOpacity
             style={styles.navItem}
-            onPress={() => !isAuthenticated && router.push('/(auth)/login')}
+            activeOpacity={isAuthenticated && user?.role === 'admin' ? 0.75 : 1}
+            onPress={() => isAuthenticated && user?.role === 'admin' && router.push('/(app)/admin/registrations')}
+            accessibilityLabel="Gerenciamento"
           >
-            <GradientIcon name="person-outline" size={20} />
-            <Text style={styles.navLabel}>Perfil</Text>
+            <GradientIcon name="people-outline" size={20} active={isAuthenticated && user?.role === 'admin'} />
+            <Text style={isAuthenticated && user?.role === 'admin' ? styles.navLabel : styles.navLabelDisabled}>
+              Gestão
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* ── Notifications Modal ──────────────── */}
+      <Modal
+        visible={notifModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setNotifModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Notificações</Text>
+              <TouchableOpacity
+                onPress={() => setNotifModal(false)}
+                accessibilityLabel="Fechar notificações"
+              >
+                <Ionicons name="close" size={22} color={C.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              {notifications.length === 0 ? (
+                <Text style={styles.notifEmpty}>Nenhuma notificação.</Text>
+              ) : (
+                notifications.map((n) => (
+                  <TouchableOpacity
+                    key={n._id}
+                    style={[styles.notifItem, n.read && styles.notifItemRead]}
+                    onPress={async () => {
+                      const token = await getToken();
+                      if (!token) return;
+                      try {
+                        await fetch(`${API_BASE_URL}/notifications/${n._id}/read`, {
+                          method: 'PATCH',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'bypass-tunnel-reminder': 'true',
+                            'Authorization': 'Bearer ' + token,
+                          },
+                        });
+                        setNotifications((prev) =>
+                          prev.map((item) =>
+                            item._id === n._id ? { ...item, read: true } : item,
+                          ),
+                        );
+                        if (!n.read) setUnreadCount((c) => Math.max(0, c - 1));
+                        // Se a notificação tem eventId, navegar para os detalhes do evento
+                        if (n.eventId) {
+                          setNotifModal(false);
+                          router.push(`/(app)/event/${n.eventId}`);
+                        }
+                      } catch {
+                        // ignore
+                      }
+                    }}
+                  >
+                    <Text style={styles.notifTitle}>
+                      {n.title || n.message || 'Notificação'}
+                    </Text>
+                    {n.body ? <Text style={styles.notifBody}>{n.body}</Text> : null}
+                    {!n.read && (
+                      <View style={styles.notifUnreadDot} />
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -704,7 +1078,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 480,
     alignSelf: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
 
   loadingContainer: {
@@ -722,43 +1096,81 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  headerLeft: { flex: 1, marginRight: 8 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  logoText: { color: C.text, fontSize: 15, fontWeight: '800', letterSpacing: 1.2 },
+  headerLeft: { flex: 1, marginRight: 16, minWidth: 0 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logoText: { color: C.text, fontSize: 16, fontWeight: '800', letterSpacing: 1.5 },
   logoTagline: {
     color: C.textMuted,
     fontSize: 8,
-    letterSpacing: 1,
+    letterSpacing: 0.8,
     marginTop: 3,
   },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconBtn: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 34, height: 34, borderRadius: 17,
     backgroundColor: C.surface,
     justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: C.cardBorder,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
   },
-  avatarBtn: { width: 36, height: 36, borderRadius: 18, overflow: 'hidden' },
+  adminBtn: {
+    borderColor: C.primary,
+    backgroundColor: 'rgba(124,95,230,0.15)',
+  },
+  avatarBtn: { width: 38, height: 38, borderRadius: 19 },
+  avatarBorder: {
+    width: 38, height: 38, borderRadius: 19,
+    padding: 2,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  avatarInner: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: C.primary,
+    justifyContent: 'center', alignItems: 'center',
+  },
   avatarGradient: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   avatarText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+  avatarImage: { width: 34, height: 34, borderRadius: 17 },
 
   // Greeting
-  greetingBlock: { paddingTop: 12, paddingBottom: 14 },
+  greetingBlock: { paddingTop: 12, paddingBottom: 20 },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
   greetingText: {
     color: C.text,
-    fontSize: 24,
-    fontWeight: '800',
-    lineHeight: 30,
+    fontSize: 17,
+    fontWeight: '700',
+    lineHeight: 24,
     letterSpacing: -0.3,
   },
   greetingName: { color: C.primary },
   greetingSubtitle: {
     color: C.textSecondary,
-    fontSize: 13,
+    fontSize: 11,
     marginTop: 6,
     lineHeight: 18,
   },
+
+  greetingPillRow: { flexDirection: 'row', marginTop: 10 },
+  rankingPillBtn: { borderRadius: 20, overflow: 'hidden' },
+  rankingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  rankingPillText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
 
   // Stats
   statsRow: { marginBottom: 18 },
@@ -800,11 +1212,24 @@ const styles = StyleSheet.create({
   retryText: { color: '#FFF', fontSize: 12, fontWeight: '600' },
 
   // ── Featured card ────────────────────────────────────
+  featuredCardBorder: {
+    borderRadius: 20,
+    padding: 2,
+    marginBottom: 28,
+    shadowColor: C.gradientStart,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 10,
+  },
   featuredCard: {
     borderRadius: 18, overflow: 'hidden',
-    marginBottom: 22, backgroundColor: C.card,
+    backgroundColor: C.card,
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    elevation: 8,
   },
-  featuredImage: { minHeight: 340, justifyContent: 'space-between' },
+  featuredImage: { minHeight: 380, justifyContent: 'space-between' },
   featuredGradient: { ...StyleSheet.absoluteFillObject, borderRadius: 18 },
   featuredTopRow: {
     flexDirection: 'row', justifyContent: 'space-between',
@@ -815,14 +1240,62 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     fontSize: 8, letterSpacing: 1.5, fontWeight: '600',
   },
+  editIconBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  featuredSubtitle: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: -2,
+  },
+  featuredEmptyCard: {
+    minHeight: 220,
+    backgroundColor: C.card,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: 'rgba(124, 95, 230, 0.4)',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    gap: 8,
+  },
+  featuredEmptyTitle: {
+    color: C.text,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  featuredEmptySubtitle: {
+    color: C.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 17,
+    maxWidth: 240,
+  },
   featuredContent: { padding: 16, paddingTop: 0, paddingBottom: 18 },
   featuredEventNumber: {
     color: 'rgba(255,255,255,0.55)',
     fontSize: 12, fontWeight: '500', marginBottom: 4,
   },
   featuredTitle: {
-    color: '#FFF', fontSize: 24, fontWeight: '800',
-    marginBottom: 10, lineHeight: 30, letterSpacing: -0.3,
+    color: '#FFF', fontSize: 28, fontWeight: '800',
+    marginBottom: 10, lineHeight: 34, letterSpacing: -0.3,
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
   },
   featuredMeta: { gap: 5, marginBottom: 16 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -830,9 +1303,9 @@ const styles = StyleSheet.create({
 
   featuredBtnWrapper: {
     alignSelf: 'flex-start', borderRadius: 24, overflow: 'hidden',
-    shadowColor: C.gradientStart,
+    shadowColor: C.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
+    shadowOpacity: 0.5, shadowRadius: 12, elevation: 8,
   },
   featuredBtn: {
     paddingVertical: 11, paddingHorizontal: 22,
@@ -865,22 +1338,48 @@ const styles = StyleSheet.create({
   // ── Section header ───────────────────────────────────
   sectionHeader: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: 14, marginTop: 4,
+    alignItems: 'center', marginBottom: 14, marginTop: 24,
   },
-  sectionTitle: { color: C.text, fontSize: 15, fontWeight: '800', letterSpacing: 1 },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionDot: {
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: C.primary,
+  },
+  sectionTitle: { color: C.text, fontSize: 14, fontWeight: '800', letterSpacing: 1.5 },
   sectionLink: {
     color: C.textSecondary, fontSize: 10, letterSpacing: 0.5, fontWeight: '600',
   },
 
+  // ── Paginação ────────────────────────────────────────────
+  pagination: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 4, paddingVertical: 12,
+  },
+  pageBtn: {
+    minWidth: 32, height: 32, borderRadius: 8,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.cardBorder,
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 6,
+  },
+  pageBtnActive: { backgroundColor: C.primary, borderColor: C.primary },
+  pageBtnDisabled: { opacity: 0.35 },
+  pageBtnText: { color: C.textSecondary, fontSize: 13, fontWeight: '600' },
+  pageBtnTextActive: { color: '#FFF', fontWeight: '800' },
+  pageEllipsis: { color: C.textMuted, fontSize: 13, paddingHorizontal: 2 },
+
   // ── Event Card ───────────────────────────────────────
   eventCard: {
-    backgroundColor: C.card,
+    backgroundColor: C.cardHover,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: C.cardBorder,
-    marginBottom: 16,
+    borderColor: 'rgba(255,255,255,0.06)',
+    marginBottom: 12,
     overflow: 'hidden',
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
   },
   // Container do risco: 70x70 no canto sup. direito
   accentCorner: {
@@ -897,12 +1396,13 @@ const styles = StyleSheet.create({
   // Header
   eventCardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    alignItems: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: C.cardBorder,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
     gap: 6,
+    flexWrap: 'wrap',
     paddingRight: 70,
   },
   eventCardNumber: {
@@ -918,11 +1418,12 @@ const styles = StyleSheet.create({
   },
   eventCardTitle: {
     color: C.text,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '800',
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
     flex: 1,
     flexShrink: 1,
+    flexWrap: 'wrap',
   },
 
   // Body: DATA | IMAGEM
@@ -932,32 +1433,32 @@ const styles = StyleSheet.create({
   },
   eventCardDateCol: {
     width: 100,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     alignItems: 'flex-start',
     justifyContent: 'center',
     borderRightWidth: 1,
-    borderRightColor: C.cardBorder,
+    borderRightColor: 'rgba(255,255,255,0.06)',
   },
   eventCardDateLabel: {
     color: C.textMuted,
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
     marginBottom: 4,
   },
   eventCardDateDay: {
     color: C.text,
-    fontSize: 44,
+    fontSize: 36,
     fontWeight: '900',
-    lineHeight: 48,
-    letterSpacing: -2,
+    lineHeight: 40,
+    letterSpacing: -1,
   },
   eventCardDateMonth: {
     color: C.text,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
     marginTop: 2,
   },
 
@@ -985,9 +1486,9 @@ const styles = StyleSheet.create({
   },
   eventCardCategoryText: {
     color: '#08070D',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
   eventCardStatusTag: {
     backgroundColor: 'rgba(8,7,13,0.92)',
@@ -1000,9 +1501,9 @@ const styles = StyleSheet.create({
   },
   eventCardStatusText: {
     color: '#FFF',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
   },
 
   eventCardAvailabilityTag: {
@@ -1018,86 +1519,85 @@ const styles = StyleSheet.create({
   },
   eventCardAvailabilityText: {
     color: C.presencial,
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '800',
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
 
   // Faixa HORÁRIO | LOCAL
   eventCardInfoRow: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    borderTopColor: C.cardBorder,
-    paddingTop: 12,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    paddingTop: 14,
     paddingBottom: 14,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     alignItems: 'center',
     marginBottom: 6,
   },
   eventCardInfoCol: { flex: 1, gap: 2 },
   eventCardInfoDivider: {
     width: 1, height: 26,
-    backgroundColor: C.cardBorder, marginHorizontal: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)', marginHorizontal: 12,
   },
   eventCardInfoLabel: {
     color: C.textMuted,
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 1.2,
+    letterSpacing: 1,
   },
   eventCardInfoValue: {
     color: C.text,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
 
   // Local (centralizado)
   eventCardLocationRow: {
-    paddingHorizontal: 12,
-    paddingTop: 14,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'center',
+    gap: 8,
   },
-  eventCardLocationLine: {
-    color: C.textSecondary,
+  eventCardLocationLabel: {
+    color: C.textMuted,
     fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 1,
-    textAlign: 'center',
+    letterSpacing: 0.8,
   },
-  eventCardDashedLine: {
-    width: '90%',
-    height: 0,
-    borderWidth: 1,
-    borderColor: C.cardBorder,
-    borderStyle: 'dashed',
-    borderRadius: 1,
+  eventCardLocationValue: {
+    color: C.text,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 
   // Botão
   eventCardBtnRow: {
-    paddingHorizontal: 12,
-    paddingBottom: 12,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
     alignItems: 'center',
   },
   eventCardBtnWrapper: {
-    borderRadius: 8,
+    borderRadius: 24,
     overflow: 'hidden',
-    shadowColor: C.gradientStart,
+    shadowColor: C.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
   },
   eventCardBtn: {
-    paddingVertical: 10,
+    paddingVertical: 11,
     paddingHorizontal: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: 24,
   },
   eventCardBtnText: {
     color: '#FFF',
@@ -1131,15 +1631,13 @@ const styles = StyleSheet.create({
   // ── Bottom nav ───────────────────────────────────────
   bottomNavOuter: {
     backgroundColor: C.navBg,
-    borderTopWidth: 1, borderTopColor: C.cardBorder,
-    ...Platform.select({
-      web: { boxShadow: '0 -8px 20px rgba(0,0,0,0.5)' },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.3, shadowRadius: 8, elevation: 12,
-      },
-    }),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 12,
   },
   bottomNavInner: {
     flexDirection: 'row',
@@ -1157,8 +1655,71 @@ const styles = StyleSheet.create({
   navLabelActive: {
     color: C.primary, fontSize: 9, fontWeight: '700', letterSpacing: 0.3,
   },
+  navLabelDisabled: {
+    color: 'rgba(107,107,123,0.4)', fontSize: 9, fontWeight: '500', letterSpacing: 0.3,
+  },
   navActiveIndicator: {
     position: 'absolute', bottom: -8,
     width: 20, height: 2, borderRadius: 1, backgroundColor: C.primary,
+  },
+  navActiveGlow: {
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+
+  // ── Notification badge ───────────────────────────────────
+  notifBadge: {
+    position: 'absolute', top: -4, right: -4,
+    minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: C.live,
+    justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  notifBadgeText: { color: '#FFF', fontSize: 8, fontWeight: '800' },
+
+  // ── Notifications modal ──────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: C.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingBottom: 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: C.cardBorder,
+  },
+  modalTitle: { color: C.text, fontSize: 16, fontWeight: '700' },
+  modalScroll: { flexGrow: 0 },
+  notifEmpty: {
+    color: C.textMuted,
+    textAlign: 'center',
+    padding: 24,
+    fontSize: 14,
+  },
+  notifItem: {
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: C.cardBorder,
+    position: 'relative',
+  },
+  notifItemRead: { opacity: 0.6 },
+  notifTitle: { color: C.text, fontSize: 14, fontWeight: '600' },
+  notifBody: { color: C.textSecondary, fontSize: 12, marginTop: 3 },
+  notifUnreadDot: {
+    position: 'absolute', top: 14, right: 14,
+    width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary,
   },
 });

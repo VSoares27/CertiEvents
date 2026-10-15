@@ -10,6 +10,7 @@ import {
   Animated,
   ImageBackground,
   Modal,
+  Linking,
   RefreshControl,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -21,7 +22,6 @@ import { useAudioPlayer } from 'expo-audio';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { BottomNav } from '../../../src/components/BottomNav';
 
@@ -79,9 +79,9 @@ export default function EventDetailScreen() {
   const [isFavorited, setIsFavorited] = useState(false);
   const [participating, setParticipating] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [downloading, setDownloading] = useState(false);
 
   // ── Modal de certificado solicitado ────────────────────
   const [certModalVisible, setCertModalVisible] = useState(false);
@@ -258,22 +258,25 @@ export default function EventDetailScreen() {
   const handleDownloadCertificate = async () => {
     try {
       setDownloading(true);
-      const certId = userRegistration.certificateDocId;
-      const url = `${API_BASE_URL}/certificates/${certId}/download`;
       const token = await getToken();
-      const localUri = FileSystem.documentDirectory + `certificate-${certId}.pdf`;
-      const result = await FileSystem.downloadAsync(url, localUri, {
-        headers: {
-          Authorization: 'Bearer ' + token,
-          'bypass-tunnel-reminder': 'true',
-        },
-      });
-      await Sharing.shareAsync(result.uri, {
-        mimeType: 'application/pdf',
-        dialogTitle: 'Certificado',
-      });
+      const certId = userRegistration?.certificateDocId;
+
+      if (!certId) {
+        Alert.alert('Erro', 'ID do certificado não encontrado. Tente recarregar a tela.');
+        return;
+      }
+
+      const url = `${API_BASE_URL}/certificates/${certId}/download`;
+      // Abre o PDF no navegador do dispositivo para download/visualização
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Erro', 'Não foi possível abrir o certificado.');
+      }
     } catch (e) {
-      Alert.alert('Erro', 'Não foi possível baixar o certificado.');
+      console.error('[Download] Erro:', e);
+      Alert.alert('Erro ao baixar', e?.message || String(e));
     } finally {
       setDownloading(false);
     }
@@ -510,8 +513,8 @@ export default function EventDetailScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Certificado já solicitado / pronto para download */}
-          {userRegistration?.certificateRequested && !userRegistration?.certificate && (
+          {/* Certificado já solicitado / aguardando emissão */}
+          {userRegistration?.certificateRequested && !userRegistration?.certificateIssued && (
             <View style={styles.certRequestedCard}>
               <Ionicons name="ribbon" size={18} color={C.accent} />
               <Text style={styles.certRequestedText}>Certificado solicitado</Text>
@@ -640,9 +643,9 @@ export default function EventDetailScreen() {
         <Animated.View
           style={[styles.certBox, { transform: [{ scale: deleteScale }], opacity: deleteOpacity }]}
         >
-          {/* Linha topo vermelha */}
+          {/* Linha topo roxa */}
           <LinearGradient
-            colors={['#EF4444', '#DC2626']}
+            colors={['#8B5CF6', '#6366F1']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.certTopBar}
@@ -651,7 +654,7 @@ export default function EventDetailScreen() {
           {/* Ícone */}
           <View style={styles.certIconWrapper}>
             <LinearGradient
-              colors={['#EF4444', '#DC2626']}
+              colors={['#8B5CF6', '#6366F1']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={[styles.certIconBadge, { width: 48, height: 48, borderRadius: 24 }]}
@@ -682,7 +685,7 @@ export default function EventDetailScreen() {
               activeOpacity={0.75}
             >
               <LinearGradient
-                colors={['#EF4444', '#DC2626']}
+                colors={['#8B5CF6', '#6366F1']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={[styles.certOkGradient, { paddingVertical: 8, borderRadius: 16 }]}

@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { registerUser, checkEmailAvailable } from '../../src/services/api';
 import { Colors } from '../../src/constants/colors';
+import { AppLogo } from '../../src/components/AppLogo';
 
 // Tela responsavel pelo cadastro de novas contas de usuarios
 export default function RegisterScreen() {
@@ -117,8 +118,7 @@ export default function RegisterScreen() {
 
           {/* Logotipo e identificacao do app */}
           <View style={styles.logoArea}>
-            <View style={styles.logoDiamond} />
-            <Text style={styles.logoText}>CERTIEVENTS</Text>
+            <AppLogo size={32} textSize={20} />
           </View>
 
           {/* Titulo e descricao da tela */}

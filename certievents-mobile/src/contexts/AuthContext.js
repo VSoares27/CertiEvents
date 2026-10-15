@@ -69,6 +69,15 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Retorna o token de acesso armazenado de forma segura
+  const getToken = async () => {
+    try {
+      return await SecureStore.getItemAsync(TOKEN_KEY);
+    } catch {
+      return null;
+    }
+  };
+
   // Variavel booleana que indica se existe uma sessao ativa
   const isAuthenticated = user !== null;
 
@@ -81,6 +90,7 @@ export function AuthProvider({ children }) {
         signIn,
         signOut,
         hasStoredToken,
+        getToken,
       }}
     >
       {children}
@@ -99,6 +109,7 @@ export function useAuth() {
       signIn: async () => {},
       signOut: async () => {},
       hasStoredToken: async () => false,
+      getToken: async () => null,
     };
   }
   return ctx;

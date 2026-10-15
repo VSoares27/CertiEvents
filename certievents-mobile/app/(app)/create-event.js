@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,20 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Animated,
   Image,
   Modal,
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { AppLogo } from '../../src/components/AppLogo';
 import {
   fetchCategories,
   createCategory,
@@ -27,11 +33,121 @@ import { Colors } from '../../src/constants/colors';
 
 export default function CreateEventScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  // ── DateTimePicker ────────────────────────────────────
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerMode, setPickerMode] = useState('date'); // 'date' | 'time'
+  const [pickerTarget, setPickerTarget] = useState('start'); // 'start' | 'end'
+  const [pickerDate, setPickerDate] = useState(new Date());
+
+  const openDatePicker = () => {
+    // Inicializa com a data atual do campo
+    if (dateText && dateText.includes('/')) {
+      const [d, m, y] = dateText.split('/');
+      const [h, mi] = timeText.includes(':') ? timeText.split(':') : ['09', '00'];
+      setPickerDate(new Date(+y, +m - 1, +d, +h, +mi));
+    } else {
+      setPickerDate(new Date());
+    }
+    setPickerMode('date');
+    setPickerTarget('start');
+    setPickerVisible(true);
+  };
+
+  const openTimePicker = (target) => {
+    if (dateText && dateText.includes('/')) {
+      const [d, m, y] = dateText.split('/');
+      const timeStr = target === 'end' ? endTimeText : timeText;
+      const [h, mi] = timeStr.includes(':') ? timeStr.split(':') : ['09', '00'];
+      setPickerDate(new Date(+y, +m - 1, +d, +h, +mi));
+    } else {
+      setPickerDate(new Date());
+    }
+    setPickerMode('time');
+    setPickerTarget(target);
+    setPickerVisible(true);
+  };
+
+  const onPickerChange = (event, selectedDate) => {
+    if (Platform.OS === 'android') setPickerVisible(false);
+    if (event.type === 'dismissed' || !selectedDate) {
+      setPickerVisible(false);
+      return;
+    }
+    const d = selectedDate;
+    if (pickerMode === 'date') {
+      const day = String(d.getDate()).padStart(2, '0');
+      const mon = String(d.getMonth() + 1).padStart(2, '0');
+      const yr = d.getFullYear();
+      setDateText(`${day}/${mon}/${yr}`);
+      setPickerDate(d);
+      if (Platform.OS === 'ios') {
+        // No iOS, após selecionar a data vai para o horário
+        setPickerMode('time');
+        setPickerTarget('start');
+      }
+    } else {
+      const h = String(d.getHours()).padStart(2, '0');
+      const mi = String(d.getMinutes()).padStart(2, '0');
+      if (pickerTarget === 'end') setEndTimeText(`${h}:${mi}`);
+      else setTimeText(`${h}:${mi}`);
+      setPickerVisible(false);
+    }
+  };
+
+  // ── Modal de sucesso ──────────────────────────────────
+  const [successVisible, setSuccessVisible] = useState(false);
+  const successScale = useRef(new Animated.Value(0)).current;
+  const successOpacity = useRef(new Animated.Value(0)).current;
+
+  const showSuccessModal = useCallback(() => {
+    setSuccessVisible(true);
+    successScale.setValue(0.08);
+    successOpacity.setValue(0);
+    Animated.parallel([
+      Animated.spring(successScale, { toValue: 1, useNativeDriver: true, tension: 180, friction: 10 }),
+      Animated.timing(successOpacity, { toValue: 1, duration: 120, useNativeDriver: true }),
+    ]).start();
+  }, [successScale, successOpacity]);
+
+  const hideSuccessModal = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(successScale, { toValue: 0.08, duration: 140, useNativeDriver: true }),
+      Animated.timing(successOpacity, { toValue: 0, duration: 120, useNativeDriver: true }),
+    ]).start(() => {
+      setSuccessVisible(false);
+      router.replace('/(app)');
+    });
+  }, [successScale, successOpacity, router]);
 
   // Estados dos campos do formulário
   const [name, setName] = useState('');
   const [dateText, setDateText] = useState('15/10/2026');
   const [timeText, setTimeText] = useState('09:00');
+  const [endTimeText, setEndTimeText] = useState('11:00');
+
+  // Formata horário: insere ':' automaticamente após 2 dígitos
+  const handleTimeChange = (setter) => (raw) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 4);
+    if (digits.length <= 2) {
+      setter(digits);
+    } else {
+      setter(`${digits.slice(0, 2)}:${digits.slice(2)}`);
+    }
+  };
+
+  // Formata data: insere '/' automaticamente após dia e mês
+  const handleDateChange = (raw) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 8);
+    let formatted = digits;
+    if (digits.length > 4) {
+      formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+    } else if (digits.length > 2) {
+      formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    }
+    setDateText(formatted);
+  };
   const [location, setLocation] = useState('IFPE / Igarassu');
   const [description, setDescription] = useState('');
   const [selectedSpaceId, setSelectedSpaceId] = useState('');
@@ -160,6 +276,7 @@ export default function CreateEventScreen() {
     setSaving(true);
     try {
       let eventDate = new Date();
+      let eventEndDate = null;
       if (dateText.includes('/')) {
         const [day, month, year] = dateText.split('/');
         const [hour, min] = timeText.includes(':') ? timeText.split(':') : ['09', '00'];
@@ -170,11 +287,24 @@ export default function CreateEventScreen() {
           parseInt(hour, 10),
           parseInt(min, 10)
         );
+        if (endTimeText.includes(':')) {
+          const [eHour, eMin] = endTimeText.split(':');
+          eventEndDate = new Date(
+            parseInt(year, 10),
+            parseInt(month, 10) - 1,
+            parseInt(day, 10),
+            parseInt(eHour, 10),
+            parseInt(eMin, 10)
+          );
+        }
       }
 
       const formData = new FormData();
       formData.append('name', name.trim());
       formData.append('date', eventDate.toISOString());
+      if (eventEndDate) {
+        formData.append('endDate', eventEndDate.toISOString());
+      }
       formData.append('location', location.trim());
       formData.append('description', description.trim());
       formData.append('type', type);
@@ -206,15 +336,7 @@ export default function CreateEventScreen() {
       }
 
       await createEvent(formData);
-
-      Alert.alert('Sucesso!', 'Evento cadastrado com sucesso!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            router.replace('/(app)');
-          },
-        },
-      ]);
+      showSuccessModal();
     } catch (err) {
       console.error('Erro ao salvar evento:', err);
       Alert.alert('Erro ao salvar', err.message || 'Ocorreu um erro ao salvar o evento.');
@@ -227,6 +349,7 @@ export default function CreateEventScreen() {
   const selectedCategoryObj = categories.find((c) => c._id === selectedCategoryId);
 
   return (
+    <>
     <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -237,17 +360,25 @@ export default function CreateEventScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header */}
+          {/* Header estilo home */}
           <View style={styles.header}>
-            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-              <Text style={styles.backBtnText}>← Voltar</Text>
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Cadastrar Evento</Text>
-            <View style={{ width: 60 }} />
+            <AppLogo size={30} textSize={16} tagline="CADASTRO DE EVENTOS" />
           </View>
 
           {/* Card Formulário Principal */}
           <View style={styles.formCard}>
+            {/* Botões de navegação de gestão de eventos */}
+            <View style={{ gap: 8 }}>
+              <TouchableOpacity style={styles.manageLinkBtn} onPress={() => router.push('/(app)/admin/events')}>
+                <Ionicons name="list-outline" size={14} color={Colors.text} style={{ marginRight: 6 }} />
+                <Text style={styles.manageLinkText}>Registro de Eventos</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.manageLinkBtn} onPress={() => router.push('/(app)/admin/ended-events')}>
+                <Ionicons name="time-outline" size={14} color={Colors.text} style={{ marginRight: 6 }} />
+                <Text style={styles.manageLinkText}>Eventos Encerrados</Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Nome do evento */}
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>Nome do evento</Text>
@@ -260,30 +391,82 @@ export default function CreateEventScreen() {
               />
             </View>
 
-            {/* Data e Horário lado a lado */}
+            {/* Tipo: Toggle Presencial / Online */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Tipo</Text>
+              <View style={styles.toggleRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleBtn,
+                    type === 'presencial' ? styles.toggleBtnActive : styles.toggleBtnInactive,
+                  ]}
+                  onPress={() => setType('presencial')}
+                >
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      type === 'presencial' ? styles.toggleTextActive : styles.toggleTextInactive,
+                    ]}
+                  >
+                    Presencial
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.toggleBtn,
+                    type === 'online' ? styles.toggleBtnActive : styles.toggleBtnInactive,
+                  ]}
+                  onPress={() => setType('online')}
+                >
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      type === 'online' ? styles.toggleTextActive : styles.toggleTextInactive,
+                    ]}
+                  >
+                    Online
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Data (linha própria, largura total) */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Data</Text>
+              <TouchableOpacity style={styles.input} onPress={openDatePicker} activeOpacity={0.75}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="calendar-outline" size={16} color={Colors.textMuted} />
+                  <Text style={dateText ? { color: Colors.text, fontSize: 14 } : { color: Colors.textMuted, fontSize: 14 }}>
+                    {dateText || 'Selecionar data'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* Horário de início e fim */}
             <View style={styles.rowFields}>
               <View style={[styles.fieldGroup, { flex: 1 }]}>
-                <Text style={styles.label}>Data</Text>
-                <TextInput
-                  style={styles.input}
-                  value={dateText}
-                  onChangeText={setDateText}
-                  placeholder="DD/MM/AAAA"
-                  placeholderTextColor={Colors.textMuted}
-                  keyboardType="numeric"
-                />
+                <Text style={styles.label}>Início</Text>
+                <TouchableOpacity style={[styles.input, { alignItems: 'center' }]} onPress={() => openTimePicker('start')} activeOpacity={0.75}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="time-outline" size={15} color={Colors.textMuted} />
+                    <Text style={timeText ? { color: Colors.text, fontSize: 14 } : { color: Colors.textMuted, fontSize: 14 }}>
+                      {timeText || '09:00'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               </View>
-
               <View style={[styles.fieldGroup, { flex: 1 }]}>
-                <Text style={styles.label}>Horário</Text>
-                <TextInput
-                  style={styles.input}
-                  value={timeText}
-                  onChangeText={setTimeText}
-                  placeholder="09:00"
-                  placeholderTextColor={Colors.textMuted}
-                  keyboardType="numeric"
-                />
+                <Text style={styles.label}>Fim</Text>
+                <TouchableOpacity style={[styles.input, { alignItems: 'center' }]} onPress={() => openTimePicker('end')} activeOpacity={0.75}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="time-outline" size={15} color={Colors.textMuted} />
+                    <Text style={endTimeText ? { color: Colors.text, fontSize: 14 } : { color: Colors.textMuted, fontSize: 14 }}>
+                      {endTimeText || '11:00'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -371,46 +554,6 @@ export default function CreateEventScreen() {
               </View>
             </View>
 
-            {/* Tipo: Toggle Presencial / Online */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Tipo</Text>
-              <View style={styles.toggleRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.toggleBtn,
-                    type === 'presencial' ? styles.toggleBtnActive : styles.toggleBtnInactive,
-                  ]}
-                  onPress={() => setType('presencial')}
-                >
-                  <Text
-                    style={[
-                      styles.toggleText,
-                      type === 'presencial' ? styles.toggleTextActive : styles.toggleTextInactive,
-                    ]}
-                  >
-                    Presencial
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.toggleBtn,
-                    type === 'online' ? styles.toggleBtnActive : styles.toggleBtnInactive,
-                  ]}
-                  onPress={() => setType('online')}
-                >
-                  <Text
-                    style={[
-                      styles.toggleText,
-                      type === 'online' ? styles.toggleTextActive : styles.toggleTextInactive,
-                    ]}
-                  >
-                    Online
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
             {/* Imagem de Capa */}
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>Imagem de capa</Text>
@@ -428,8 +571,9 @@ export default function CreateEventScreen() {
                   </View>
                 ) : (
                   <View style={styles.imagePlaceholder}>
-                    <Text style={styles.uploadIcon}>📤</Text>
-                    <Text style={styles.uploadText}>Escolher imagem</Text>
+                    <Ionicons name="cloud-upload-outline" size={28} color={Colors.primary} />
+                    <Text style={styles.uploadText}>Carregar imagem</Text>
+                    <Text style={styles.uploadHint}>Clique para selecionar da galeria</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -437,16 +581,23 @@ export default function CreateEventScreen() {
 
             {/* Botão Salvar Evento */}
             <TouchableOpacity
-              style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+              style={[styles.saveBtnWrapper, saving && styles.saveBtnDisabled]}
               onPress={handleSaveEvent}
               disabled={saving}
-              activeOpacity={0.8}
+              activeOpacity={0.75}
             >
-              {saving ? (
-                <ActivityIndicator size="small" color={Colors.text} />
-              ) : (
-                <Text style={styles.saveBtnText}>Salvar evento</Text>
-              )}
+              <LinearGradient
+                colors={['#8B5CF6', '#6366F1']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.saveBtn}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={styles.saveBtnText}>SALVAR EVENTO</Text>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
           </View>
 
@@ -613,7 +764,100 @@ export default function CreateEventScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ── Bottom Nav customizado apenas com Início ── */}
+      <View style={[styles.customBottomNav, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <TouchableOpacity
+          style={styles.customNavItem}
+          activeOpacity={0.75}
+          onPress={() => router.replace('/(app)')}
+          accessibilityLabel="Início"
+        >
+          <View style={styles.customActiveGlow}>
+            <MaskedView
+              style={{ width: 22, height: 22 }}
+              maskElement={
+                <View style={{ backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' }}>
+                  <Ionicons name="home" size={22} color="#000" />
+                </View>
+              }
+            >
+              <LinearGradient
+                colors={['#8B5CF6', '#6366F1']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ width: 22, height: 22 }}
+              />
+            </MaskedView>
+          </View>
+          <Text style={styles.customLabelActive}>Início</Text>
+          <View style={styles.customIndicator} />
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
+
+    {/* ── DateTimePicker com Modal customizado ── */}
+    {pickerVisible && (
+      Platform.OS === 'ios' ? (
+        <Modal transparent animationType="slide" visible={pickerVisible}>
+          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <View style={{ backgroundColor: '#13111F', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 8, paddingBottom: 8 }}>
+                <TouchableOpacity onPress={() => setPickerVisible(false)}>
+                  <Text style={{ color: '#A78BFA', fontSize: 16, fontWeight: '600' }}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setPickerVisible(false)}>
+                  <Text style={{ color: '#8B5CF6', fontSize: 16, fontWeight: '700' }}>Confirmar</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={pickerDate}
+                mode={pickerMode}
+                display="spinner"
+                onChange={onPickerChange}
+                minimumDate={pickerMode === 'date' ? new Date(2020, 0, 1) : undefined}
+                themeVariant="dark"
+                accentColor="#7C5FE6"
+                textColor="#FFFFFF"
+                style={{ backgroundColor: '#13111F' }}
+              />
+            </View>
+          </View>
+        </Modal>
+      ) : (
+        <DateTimePicker
+          value={pickerDate}
+          mode={pickerMode}
+          display="default"
+          onChange={onPickerChange}
+          minimumDate={pickerMode === 'date' ? new Date(2020, 0, 1) : undefined}
+          themeVariant="dark"
+          accentColor="#8B5CF6"
+        />
+      )
+    )}
+
+    {/* ── Modal de Sucesso: Cadastro Realizado ── */}
+    <Modal visible={successVisible} transparent statusBarTranslucent animationType="none" onRequestClose={hideSuccessModal}>
+      <TouchableOpacity style={styles.successOverlay} activeOpacity={1} onPress={hideSuccessModal}>
+        <Animated.View style={[styles.successBox, { transform: [{ scale: successScale }], opacity: successOpacity }]}>
+          <LinearGradient colors={['#8B5CF6', '#6366F1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.successTopBar} />
+          <View style={styles.successIconWrapper}>
+            <LinearGradient colors={['#8B5CF6', '#6366F1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.successIconBadge}>
+              <Ionicons name="checkmark" size={28} color="#FFF" />
+            </LinearGradient>
+          </View>
+          <Text style={styles.successTitle}>Cadastro Realizado!</Text>
+          <Text style={styles.successSubtitle}>O evento foi cadastrado{'\n'}com sucesso.</Text>
+          <TouchableOpacity style={styles.successOkBtn} onPress={hideSuccessModal} activeOpacity={0.75}>
+            <LinearGradient colors={['#8B5CF6', '#6366F1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.successOkGradient}>
+              <Text style={styles.successOkText}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
+      </TouchableOpacity>
+    </Modal>
+    </>
   );
 }
 
@@ -627,28 +871,46 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: 20,
     paddingVertical: 14,
-    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.cardBorder,
   },
-  backBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logoDiamond: {
+    width: 13, height: 13,
+    backgroundColor: Colors.primary,
+    transform: [{ rotate: '45deg' }],
   },
-  backBtnText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
+  logoText: {
+    color: Colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 1.5,
   },
   headerTitle: {
-    color: Colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
-
-  // Form Card
+  manageLinkBtn: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(124,95,230,0.4)',
+    backgroundColor: 'rgba(124,95,230,0.08)',
+    marginBottom: 12,
+  },
+  manageLinkText: {
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: '600',
+  },
   formCard: {
     backgroundColor: Colors.surface,
     borderRadius: 16,
@@ -668,7 +930,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: Colors.card,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: 'rgba(124,95,230,0.55)',
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -694,7 +956,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.card,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: 'rgba(124,95,230,0.55)',
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -719,7 +981,7 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: 'rgba(124,95,230,0.55)',
     backgroundColor: Colors.card,
     justifyContent: 'center',
     alignItems: 'center',
@@ -734,30 +996,38 @@ const styles = StyleSheet.create({
   // Toggle Presencial / Online
   toggleRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
+    alignSelf: 'flex-start',
   },
   toggleBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
+    minWidth: 100,
   },
   toggleBtnActive: {
-    backgroundColor: 'rgba(124, 95, 230, 0.15)',
+    backgroundColor: Colors.primary,
     borderColor: Colors.primary,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   toggleBtnInactive: {
     backgroundColor: Colors.card,
     borderColor: Colors.cardBorder,
   },
   toggleText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
   toggleTextActive: {
-    color: Colors.primary,
+    color: '#FFF',
   },
   toggleTextInactive: {
     color: Colors.textSecondary,
@@ -765,26 +1035,32 @@ const styles = StyleSheet.create({
 
   // Upload Imagem
   imagePickerBox: {
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    backgroundColor: 'rgba(124, 95, 230, 0.05)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(124, 95, 230, 0.3)',
+    borderStyle: 'dashed',
     borderRadius: 12,
-    height: 130,
+    height: 140,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
   },
   imagePlaceholder: {
     alignItems: 'center',
-    gap: 6,
-  },
-  uploadIcon: {
-    fontSize: 24,
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 8,
   },
   uploadText: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  uploadHint: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    fontWeight: '500',
   },
   imagePreviewWrapper: {
     width: '100%',
@@ -812,20 +1088,33 @@ const styles = StyleSheet.create({
   },
 
   // Botão Salvar
+  saveBtnWrapper: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginTop: 16,
+    alignSelf: 'center',
+    width: '65%',
+    shadowColor: '#7C5FE6',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
+  },
   saveBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 25,
-    paddingVertical: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 20,
     alignItems: 'center',
-    marginTop: 10,
+    justifyContent: 'center',
+    borderRadius: 20,
   },
   saveBtnDisabled: {
     opacity: 0.6,
   },
   saveBtnText: {
-    color: Colors.text,
-    fontSize: 15,
+    color: '#FFF',
+    fontSize: 11,
     fontWeight: '700',
+    letterSpacing: 1.3,
     letterSpacing: 0.5,
   },
 
@@ -921,4 +1210,76 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: 14,
   },
+
+  // ── Bottom Nav Customizado ──
+  customBottomNav: {
+    backgroundColor: '#0B0A12',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customNavItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    paddingVertical: 4,
+    position: 'relative',
+  },
+  customLabelActive: {
+    color: '#7C5FE6',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  customIndicator: {
+    position: 'absolute',
+    bottom: -8,
+    width: 20,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#7C5FE6',
+  },
+  customActiveGlow: {
+    shadowColor: '#7C5FE6',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+
+  // ── Modal de Sucesso ──
+  successOverlay: {
+    flex: 1, backgroundColor: 'rgba(8,7,13,0.85)',
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40,
+  },
+  successBox: {
+    width: '100%', backgroundColor: '#13111F',
+    borderRadius: 20, borderWidth: 1, borderColor: '#1F1D2E',
+    overflow: 'hidden', alignItems: 'center', paddingBottom: 24,
+  },
+  successTopBar: { width: '100%', height: 3, marginBottom: 28 },
+  successIconWrapper: { marginBottom: 16 },
+  successIconBadge: {
+    width: 64, height: 64, borderRadius: 32,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  successTitle: {
+    color: '#FFFFFF', fontSize: 20, fontWeight: '800',
+    letterSpacing: 0.3, marginBottom: 8, textAlign: 'center',
+  },
+  successSubtitle: {
+    color: '#A0A0B0', fontSize: 13, textAlign: 'center',
+    lineHeight: 20, marginBottom: 24, paddingHorizontal: 16,
+  },
+  successOkBtn: { width: '55%', borderRadius: 20, overflow: 'hidden' },
+  successOkGradient: { paddingVertical: 11, alignItems: 'center', borderRadius: 20 },
+  successOkText: { color: '#FFF', fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
 });

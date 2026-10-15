@@ -28,7 +28,19 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-audio",
+      [
+        "@react-native-community/datetimepicker",
+        {
+          "android": {
+            "style": "Dialog",
+            "accentColor": "#7C5FE6",
+            "headerTextColor": "#FFFFFF",
+            "headerBackgroundColor": "#7C5FE6"
+          }
+        }
+      ]
     ]
   }
 }

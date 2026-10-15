@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { loginUser } from '../../src/services/api';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Colors } from '../../src/constants/colors';
+import { AppLogo } from '../../src/components/AppLogo';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function LoginScreen() {
       const userData = {
         fullName: result.fullName,
         email: result.email,
+        role: result.role,
       };
       await signIn(userData, result.accessToken);
       router.replace('/(app)');
@@ -64,8 +66,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <View style={styles.logoArea}>
-            <View style={styles.logoDiamond} />
-            <Text style={styles.logoText}>CERTIEVENT™</Text>
+            <AppLogo size={32} textSize={20} />
           </View>
 
           <Text style={styles.title}>Bem-vindo</Text>
