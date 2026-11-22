@@ -35,6 +35,7 @@ export class CertificatesService {
       dto.fullName,
       dto.eventName,
       dto.eventDate,
+      dto.config,
     );
 
     // Retorna imediatamente o ID gerado e o status inicial do certificado
@@ -47,15 +48,17 @@ export class CertificatesService {
     fullName: string,
     eventName: string,
     eventDate: string,
+    config?: Record<string, any>,
   ) {
     try {
-      // Chama o serviço de PDF passando os dados do evento e o ID do certificado
-      const pdfBuffer = await this.pdfService.gerarCertificado(
+      // Chama o serviço de PDF passando os dados do evento, ID do certificado e configurações de modelo
+      const pdfBuffer = await this.pdfService.gerarCertificado({
         fullName,
         eventName,
         eventDate,
-        id,
-      );
+        certificateId: id,
+        ...config,
+      });
 
       // Salva o buffer do PDF gerado no armazenamento local
       this.localStorageService.saveCertificate(id, pdfBuffer);

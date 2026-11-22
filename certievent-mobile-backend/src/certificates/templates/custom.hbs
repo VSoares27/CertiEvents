@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: {{#if primaryColor}}{{primaryColor}}{{else}}#6366f1{{/if}};
+            --secondary: {{#if secondaryColor}}{{secondaryColor}}{{else}}#ec4899{{/if}};
+            --bg-base: {{#if bgColor}}{{bgColor}}{{else}}#0f172a{{/if}};
+            --text-main: {{#if textColor}}{{textColor}}{{else}}#ffffff{{/if}};
+            --accent-border: {{#if borderColor}}{{borderColor}}{{else}}#f59e0b{{/if}};
+        }
+
+        @page {
+            size: A4 landscape;
+            margin: 0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 297mm;
+            height: 210mm;
+            overflow: hidden;
+            background-color: var(--bg-base);
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+            color: var(--text-main);
+        }
+
+        .certificate {
+            width: 297mm;
+            height: 210mm;
+            padding: 10mm;
+            background: linear-gradient(135deg, var(--bg-base) 0%, rgba(15, 23, 42, 0.95) 100%);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Moldura com gradiente personalizado */
+        .frame-outer {
+            width: 100%;
+            height: 100%;
+            border-radius: 16px;
+            padding: 3px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent-border) 50%, var(--secondary) 100%);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .frame-inner {
+            width: 100%;
+            height: 100%;
+            background: var(--bg-base);
+            border-radius: 13px;
+            padding: 8mm 14mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            text-align: center;
+            position: relative;
+        }
+
+        .header {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .header .org-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .header .org-sub {
+            font-size: 11px;
+            font-weight: 400;
+            opacity: 0.8;
+            letter-spacing: 2px;
+            margin-top: 3px;
+            text-transform: uppercase;
+        }
+
+        .title-block {
+            margin-top: 2mm;
+        }
+
+        .title-block h1 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 44px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--text-main) 0%, var(--accent-border) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .title-block .subtitle {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--accent-border);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        .name-wrapper {
+            margin: 3mm 0;
+        }
+
+        .name-wrapper .student-name {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            display: inline-block;
+            border-bottom: 2px solid var(--primary);
+            padding: 0 16px 4px 16px;
+        }
+
+        .body-text {
+            max-width: 230mm;
+            margin: 2mm auto;
+        }
+
+        .body-text .intro {
+            font-size: 16px;
+            opacity: 0.85;
+            margin-bottom: 2mm;
+        }
+
+        .body-text .description {
+            font-size: 18px;
+            line-height: 1.6;
+            opacity: 0.95;
+        }
+
+        .body-text strong {
+            color: var(--accent-border);
+            font-weight: 700;
+        }
+
+        .signatures-grid {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-top: 2mm;
+            padding: 0 15mm;
+        }
+
+        .sig-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 65mm;
+        }
+
+        .sig-bar {
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            margin-bottom: 6px;
+        }
+
+        .sig-person {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .sig-designation {
+            font-size: 10px;
+            color: var(--primary);
+            margin-top: 2px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .footer {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 2mm;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 9px;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="certificate">
+        <div class="frame-outer">
+            <div class="frame-inner">
+                <div class="header">
+                    <div class="org-name">{{#if instituicao}}{{instituicao}}{{else}}CertiEvents{{/if}}</div>
+                    <div class="org-sub">{{#if subInstituicao}}{{subInstituicao}}{{else}}Plataforma de Certificação Digital{{/if}}</div>
+                </div>
+
+                <div class="title-block">
+                    <h1>{{#if titulo}}{{titulo}}{{else}}Certificado{{/if}}</h1>
+                    <div class="subtitle">{{#if subtitulo}}{{subtitulo}}{{else}}de Participação{{/if}}</div>
+                </div>
+
+                <div class="name-wrapper">
+                    <span class="student-name">{{nome}}</span>
+                </div>
+
+                <div class="body-text">
+                    <p class="intro">Certificamos com distinção que</p>
+                    <p class="description">
+                        {{#if textoPersonalizado}}
+                            {{textoPersonalizado}}
+                        {{else}}
+                            participou com dedicação do evento <strong>{{evento}}</strong>, realizado na data de <strong>{{data}}</strong>{{#if cargaHoraria}}, com carga horária de <strong>{{cargaHoraria}}</strong>{{/if}}.
+                        {{/if}}
+                    </p>
+                </div>
+
+                <div class="signatures-grid">
+                    <div class="sig-col">
+                        <div class="sig-bar"></div>
+                        <div class="sig-person">{{#if assinaturaNome}}{{assinaturaNome}}{{else}}Responsável pelo Evento{{/if}}</div>
+                        <div class="sig-designation">{{#if assinaturaCargo}}{{assinaturaCargo}}{{else}}Organização{{/if}}</div>
+                    </div>
+                    {{#if assinatura2Nome}}
+                    <div class="sig-col">
+                        <div class="sig-bar"></div>
+                        <div class="sig-person">{{assinatura2Nome}}</div>
+                        <div class="sig-designation">{{#if assinatura2Cargo}}{{assinatura2Cargo}}{{else}}Diretoria{{/if}}</div>
+                    </div>
+                    {{/if}}
+                </div>
+
+                <div class="footer">
+                    <div>Validação de autenticidade CertiEvents</div>
+                    <div>Autenticação: <strong>{{certificadoId}}</strong></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

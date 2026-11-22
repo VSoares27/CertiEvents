@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;800&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 297mm;
+            height: 210mm;
+            overflow: hidden;
+            background-color: #f7f4ec;
+        }
+
+        body {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+        }
+
+        .certificate {
+            width: 297mm;
+            height: 210mm;
+            padding: 10mm;
+            background-color: #fcfaf6;
+            background-image: 
+                radial-gradient(#e5dec9 0.75px, transparent 0.75px),
+                radial-gradient(#e5dec9 0.75px, #fcfaf6 0.75px);
+            background-size: 30px 30px;
+            background-position: 0 0, 15px 15px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .outer-border {
+            width: 100%;
+            height: 100%;
+            border: 4px solid #1a2f4c;
+            padding: 4px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .inner-border {
+            width: 100%;
+            height: 100%;
+            border: 2px solid #b8860b;
+            padding: 8mm 14mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            background: #ffffff;
+        }
+
+        /* Cantoneiras decorativas */
+        .corner {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            border-color: #b8860b;
+            border-style: solid;
+        }
+        .corner-tl { top: 6px; left: 6px; border-width: 3px 0 0 3px; }
+        .corner-tr { top: 6px; right: 6px; border-width: 3px 3px 0 0; }
+        .corner-bl { bottom: 6px; left: 6px; border-width: 0 0 3px 3px; }
+        .corner-br { bottom: 6px; right: 6px; border-width: 0 3px 3px 0; }
+
+        .header {
+            width: 100%;
+            text-align: center;
+            margin-top: 1mm;
+        }
+
+        .header .logo-badge {
+            display: inline-block;
+            font-family: 'Cinzel', serif;
+            font-size: 13px;
+            font-weight: 700;
+            color: #1a2f4c;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            border-bottom: 2px solid #b8860b;
+            padding-bottom: 4px;
+        }
+
+        .header .sub-header {
+            font-size: 11px;
+            color: #6b7280;
+            letter-spacing: 2px;
+            margin-top: 4px;
+            text-transform: uppercase;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .title {
+            margin-top: 2mm;
+        }
+
+        .title h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 44px;
+            font-weight: 800;
+            color: #1a2f4c;
+            letter-spacing: 7px;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .title-sub {
+            font-size: 16px;
+            font-style: italic;
+            color: #8c6d1f;
+            letter-spacing: 3px;
+            margin-top: 2px;
+        }
+
+        .divider-with-name {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            margin: 3mm auto 0 auto;
+        }
+
+        .divider-with-name .nome {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 42px;
+            font-weight: 700;
+            font-style: italic;
+            color: #111827;
+            padding: 0 20px 4px 20px;
+            display: inline-block;
+        }
+
+        .divider-with-name .line {
+            width: 80mm;
+            height: 1px;
+            background: #b8860b;
+            margin: 0 auto;
+        }
+
+        .content {
+            max-width: 220mm;
+            margin: 3mm auto 2mm auto;
+        }
+
+        .content .intro {
+            font-size: 18px;
+            color: #4b5563;
+            margin-bottom: 2mm;
+            font-style: italic;
+        }
+
+        .content .text {
+            font-size: 20px;
+            color: #1f2937;
+            line-height: 1.7;
+        }
+
+        .content .text strong {
+            font-family: 'Cinzel', serif;
+            font-weight: 700;
+            color: #1a2f4c;
+            font-size: 19px;
+            letter-spacing: 0.5px;
+        }
+
+        .content .text .destaque {
+            color: #8c6d1f;
+            font-weight: 600;
+        }
+
+        .signatures {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-bottom: 2mm;
+            padding: 0 10mm;
+        }
+
+        .signature-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 70mm;
+        }
+
+        .signature-line {
+            width: 100%;
+            border-top: 1px solid #1a2f4c;
+            margin-bottom: 6px;
+        }
+
+        .signature-name {
+            font-family: 'Cinzel', serif;
+            font-size: 12px;
+            font-weight: 700;
+            color: #1a2f4c;
+            letter-spacing: 1px;
+        }
+
+        .signature-role {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 10px;
+            font-weight: 500;
+            color: #6b7280;
+            margin-top: 3px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .footer {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 4mm;
+            border-top: 1px dashed #d1d5db;
+            padding-top: 2mm;
+        }
+
+        .selo-text {
+            font-family: 'Cinzel', serif;
+            font-size: 9px;
+            color: #b8860b;
+            letter-spacing: 2px;
+            font-weight: 700;
+        }
+
+        .codigo {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 9px;
+            font-weight: 500;
+            color: #6b7280;
+            letter-spacing: 1px;
+        }
+
+        .codigo span {
+            color: #1a2f4c;
+            font-weight: 700;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="certificate">
+        <div class="outer-border">
+            <div class="inner-border">
+                <div class="corner corner-tl"></div>
+                <div class="corner corner-tr"></div>
+                <div class="corner corner-bl"></div>
+                <div class="corner corner-br"></div>
+
+                <div class="header">
+                    <div class="logo-badge">{{#if instituicao}}{{instituicao}}{{else}}Instituto Federal de Pernambuco{{/if}}</div>
+                    <div class="sub-header">{{#if subInstituicao}}{{subInstituicao}}{{else}}Registro Acadêmico Oficial{{/if}}</div>
+                </div>
+
+                <div class="title">
+                    <h1>{{#if titulo}}{{titulo}}{{else}}Certificado{{/if}}</h1>
+                    <div class="title-sub">{{#if subtitulo}}{{subtitulo}}{{else}}de Conclusão e Participação{{/if}}</div>
+                </div>
+
+                <div class="divider-with-name">
+                    <span class="nome">{{nome}}</span>
+                    <div class="line"></div>
+                </div>
+
+                <div class="content">
+                    <p class="intro">Certificamos solenemente para os devidos fins que</p>
+                    <p class="text">
+                        {{#if textoPersonalizado}}
+                            {{textoPersonalizado}}
+                        {{else}}
+                            concluiu com êxito a participação no evento <strong>{{evento}}</strong>, realizado na data de <span class="destaque">{{data}}</span>{{#if cargaHoraria}}, cumprindo integralmente a carga horária de <span class="destaque">{{cargaHoraria}}</span>{{/if}}.
+                        {{/if}}
+                    </p>
+                </div>
+
+                <div class="signatures">
+                    <div class="signature-block">
+                        <div class="signature-line"></div>
+                        <div class="signature-name">{{#if assinaturaNome}}{{assinaturaNome}}{{else}}Liliane Alves{{/if}}</div>
+                        <div class="signature-role">{{#if assinaturaCargo}}{{assinaturaCargo}}{{else}}Coordenação do Evento{{/if}}</div>
+                    </div>
+                    <div class="signature-block">
+                        <div class="signature-line"></div>
+                        <div class="signature-name">{{#if assinatura2Nome}}{{assinatura2Nome}}{{else}}Lincoln Tavares{{/if}}</div>
+                        <div class="signature-role">{{#if assinatura2Cargo}}{{assinatura2Cargo}}{{else}}Diretoria Geral{{/if}}</div>
+                    </div>
+                </div>
+
+                <div class="footer">
+                    <div class="selo-text">Documento Oficial CertiEvents</div>
+                    <div class="codigo">Chave de Registro: <span>{{certificadoId}}</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

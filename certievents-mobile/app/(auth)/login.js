@@ -61,7 +61,7 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/(app)')}>
             <Text style={styles.backBtnText}>← Voltar</Text>
           </TouchableOpacity>
 

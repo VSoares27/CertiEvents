@@ -132,3 +132,17 @@ export async function loginUser({ email, password }) {
   }
   return data;
 }
+
+// Gera pré-visualização instantânea do certificado sem salvar
+export async function previewCertificate(config) {
+  const response = await fetch(`${API_BASE_URL}/certificates/preview`, {
+    method: 'POST',
+    headers: defaultHeaders,
+    body: JSON.stringify(config),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Erro ao gerar pré-visualização');
+  }
+  return response.json();
+}

@@ -78,6 +78,18 @@ export class EventsController {
         ? new Types.ObjectId(body.spaceId)
         : undefined;
 
+    let certificateConfig: any = undefined;
+    if (body.certificateConfig) {
+      try {
+        certificateConfig =
+          typeof body.certificateConfig === 'string'
+            ? JSON.parse(body.certificateConfig)
+            : body.certificateConfig;
+      } catch {
+        certificateConfig = undefined;
+      }
+    }
+
     const newEvent = await this.eventsService.create({
       name: body.name,
       description: body.description || '',
@@ -89,6 +101,7 @@ export class EventsController {
       status: body.status || 'upcoming',
       imageUrl: file ? file.filename : undefined,
       endDate: body.endDate ? new Date(body.endDate) : undefined,
+      certificateConfig,
     });
 
     return newEvent;

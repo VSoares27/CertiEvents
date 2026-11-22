@@ -65,6 +65,10 @@ export class Event {
   // Total de avaliações recebidas
   @Prop({ default: 0 })
   ratingCount: number;
+
+  // Configuração opcional de estilo e modelo do certificado do evento
+  @Prop({ type: Object })
+  certificateConfig?: Record<string, any>;
 }
 
 // Cria e exporta o schema do Mongoose a partir da classe Event

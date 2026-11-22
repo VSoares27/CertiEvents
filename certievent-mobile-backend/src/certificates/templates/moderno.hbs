@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
     <meta charset="UTF-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,8 +18,7 @@
             box-sizing: border-box;
         }
 
-        html,
-        body {
+        html, body {
             width: 297mm;
             height: 210mm;
             overflow: hidden;
@@ -74,7 +72,6 @@
             pointer-events: none;
         }
 
-        /* ========== CABEÇALHO CENTRALIZADO ========== */
         .header {
             width: 100%;
             text-align: center;
@@ -105,7 +102,6 @@
             margin: 8px auto 0 auto;
         }
 
-        /* ========== TÍTULO ========== */
         .title {
             margin-top: 2mm;
             width: 100%;
@@ -113,7 +109,7 @@
 
         .title h1 {
             font-family: 'Playfair Display', Georgia, serif;
-            font-size: 48px;
+            font-size: 46px;
             font-weight: 700;
             color: #f6c445;
             letter-spacing: 6px;
@@ -123,7 +119,7 @@
         }
 
         .title-sub {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 300;
             color: #ffd700;
             letter-spacing: 6px;
@@ -132,18 +128,17 @@
             opacity: 0.9;
         }
 
-        /* ========== NOME + LINHA DIVISÓRIA ========== */
         .divider-with-name {
             display: flex;
             flex-direction: column;
             align-items: center;
             width: 100%;
-            margin: 6px auto 0 auto;
+            margin: 4px auto 0 auto;
         }
 
         .divider-with-name .nome {
             font-family: 'Montserrat', sans-serif;
-            font-size: 38px;
+            font-size: 36px;
             font-weight: 700;
             color: #ffffff;
             text-transform: uppercase;
@@ -151,7 +146,6 @@
             padding: 0 20px 6px 20px;
             text-shadow: 0 2px 8px rgba(246, 196, 69, 0.15);
             display: inline-block;
-            background: transparent;
         }
 
         .divider-with-name .line {
@@ -161,15 +155,14 @@
             margin: 0 auto;
         }
 
-        /* ========== CONTEÚDO ========== */
         .content {
             max-width: 220mm;
-            margin: 6mm auto 2mm auto;
+            margin: 4mm auto 2mm auto;
         }
 
         .content .intro {
             font-family: 'Playfair Display', Georgia, serif;
-            font-size: 18px;
+            font-size: 17px;
             color: #d4b8ff;
             margin-bottom: 2mm;
             letter-spacing: 1px;
@@ -177,9 +170,9 @@
 
         .content .text {
             font-family: 'Playfair Display', Georgia, serif;
-            font-size: 19px;
+            font-size: 18px;
             color: #e8d5ff;
-            line-height: 1.8;
+            line-height: 1.7;
             letter-spacing: 0.5px;
         }
 
@@ -195,7 +188,6 @@
             font-weight: 600;
         }
 
-        /* ========== ASSINATURAS ========== */
         .signatures {
             display: flex;
             justify-content: space-around;
@@ -233,7 +225,6 @@
             text-transform: uppercase;
         }
 
-        /* ========== RODAPÉ ========== */
         .footer {
             width: 100%;
             display: flex;
@@ -260,57 +251,51 @@
 <body>
     <div class="certificate">
         <div class="inner-border">
-
-            <!-- ======== CABEÇALHO CENTRALIZADO ======== -->
             <div class="header">
-                <div class="logo-text">Instituto Federal de Pernambuco</div>
-                <div class="sub-logo-text">Campus Igarassu</div>
+                <div class="logo-text">{{#if instituicao}}{{instituicao}}{{else}}Instituto Federal de Pernambuco{{/if}}</div>
+                <div class="sub-logo-text">{{#if subInstituicao}}{{subInstituicao}}{{else}}Campus Igarassu{{/if}}</div>
             </div>
 
             <div class="header-divider"></div>
 
-            <!-- ======== TÍTULO ======== -->
             <div class="title">
-                <h1>Certificado</h1>
-                <div class="title-sub">de participação</div>
+                <h1>{{#if titulo}}{{titulo}}{{else}}Certificado{{/if}}</h1>
+                <div class="title-sub">{{#if subtitulo}}{{subtitulo}}{{else}}de participação{{/if}}</div>
             </div>
 
-            <!-- ======== NOME + LINHA DIVISÓRIA ======== -->
             <div class="divider-with-name">
                 <span class="nome">{{nome}}</span>
                 <div class="line"></div>
             </div>
 
-            <!-- ======== CONTEÚDO ======== -->
             <div class="content">
-                <p class="intro">Certificamos que</p>
+                <p class="intro">Certificamos que <span class="nome">{{nome}}</span></p>
                 <p class="text">
-                    participou do evento <strong>{{evento}}</strong>,<br>
-                    realizado em <span class="destaque">{{data}}</span>.
+                    {{#if textoPersonalizado}}
+                        {{textoPersonalizado}}
+                    {{else}}
+                        participou com êxito do evento <strong>{{evento}}</strong>, realizado em <span class="destaque">{{data}}</span>{{#if cargaHoraria}}, com carga horária total de <span class="destaque">{{cargaHoraria}}</span>{{/if}}.
+                    {{/if}}
                 </p>
             </div>
 
-            <!-- ======== ASSINATURAS ======== -->
             <div class="signatures">
                 <div class="signature-block">
                     <div class="signature-line"></div>
-                    <div class="signature-name">Liliane Alves</div>
-                    <div class="signature-role">Coordenadora do Evento</div>
+                    <div class="signature-name">{{#if assinaturaNome}}{{assinaturaNome}}{{else}}Liliane Alves{{/if}}</div>
+                    <div class="signature-role">{{#if assinaturaCargo}}{{assinaturaCargo}}{{else}}Coordenadora do Evento{{/if}}</div>
                 </div>
                 <div class="signature-block">
                     <div class="signature-line"></div>
-                    <div class="signature-name">Lincoln Tavares</div>
-                    <div class="signature-role">Diretor Geral</div>
+                    <div class="signature-name">{{#if assinatura2Nome}}{{assinatura2Nome}}{{else}}Lincoln Tavares{{/if}}</div>
+                    <div class="signature-role">{{#if assinatura2Cargo}}{{assinatura2Cargo}}{{else}}Diretor Geral{{/if}}</div>
                 </div>
             </div>
 
-            <!-- ======== RODAPÉ ======== -->
             <div class="footer">
                 <div class="codigo">Código de Autenticação: <span>ID {{certificadoId}}</span></div>
             </div>
-
         </div>
     </div>
 </body>
-
 </html>

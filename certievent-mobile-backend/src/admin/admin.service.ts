@@ -198,12 +198,23 @@ export class AdminService {
           continue;
         }
 
+        const config = { ...((event as any).certificateConfig || {}) };
+        if (!config.cargaHoraria && event.date && event.endDate) {
+          const diffMs =
+            new Date(event.endDate).getTime() - new Date(event.date).getTime();
+          if (diffMs > 0) {
+            const hours = Math.round((diffMs / (1000 * 60 * 60)) * 10) / 10;
+            config.cargaHoraria = `${hours}h`;
+          }
+        }
+
         const cert = await this.certificatesService.requestCertificate({
           userId: reg.userId,
           eventId: reg.eventId,
           fullName: user.fullName,
           eventName: event.name,
           eventDate: event.date.toISOString(),
+          config,
         });
         await this.registrationModel.findByIdAndUpdate(id, {
           certificateIssued: true,

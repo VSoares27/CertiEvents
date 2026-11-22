@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 297mm;
+            height: 210mm;
+            overflow: hidden;
+            background-color: #ffffff;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+            color: #0f172a;
+        }
+
+        .certificate {
+            width: 297mm;
+            height: 210mm;
+            padding: 12mm 14mm;
+            background: #ffffff;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Barra decorativa superior */
+        .top-accent {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: linear-gradient(90deg, #0ea5e9 0%, #10b981 100%);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 4mm;
+        }
+
+        .logo-title {
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            color: #0f172a;
+            text-transform: uppercase;
+        }
+
+        .logo-tag {
+            font-size: 11px;
+            font-weight: 500;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .category-pill {
+            font-size: 10px;
+            font-weight: 700;
+            color: #0369a1;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            padding: 4px 12px;
+            border-radius: 999px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .main-section {
+            margin: auto 0;
+        }
+
+        .title-area {
+            margin-bottom: 4mm;
+        }
+
+        .title-area .eyebrow {
+            font-size: 12px;
+            font-weight: 700;
+            color: #0ea5e9;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 2px;
+        }
+
+        .title-area h1 {
+            font-size: 40px;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.5px;
+            line-height: 1.1;
+        }
+
+        .name-container {
+            margin: 5mm 0 4mm 0;
+        }
+
+        .name-container .nome {
+            font-size: 34px;
+            font-weight: 700;
+            color: #0369a1;
+            display: inline-block;
+        }
+
+        .content-box {
+            max-width: 240mm;
+        }
+
+        .content-box p {
+            font-size: 17px;
+            font-weight: 400;
+            color: #334155;
+            line-height: 1.6;
+        }
+
+        .content-box strong {
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .signatures-area {
+            display: flex;
+            justify-content: flex-start;
+            gap: 25mm;
+            margin-top: 6mm;
+            padding-top: 4mm;
+        }
+
+        .signature-item {
+            width: 60mm;
+        }
+
+        .sig-line {
+            height: 1px;
+            background: #cbd5e1;
+            margin-bottom: 6px;
+        }
+
+        .sig-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .sig-role {
+            font-size: 11px;
+            font-weight: 500;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 3mm;
+            font-size: 10px;
+            color: #94a3b8;
+        }
+
+        .code-tag {
+            font-family: monospace;
+            font-weight: 600;
+            color: #475569;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="certificate">
+        <div class="top-accent"></div>
+
+        <div class="header">
+            <div>
+                <div class="logo-title">{{#if instituicao}}{{instituicao}}{{else}}Instituto Federal de Pernambuco{{/if}}</div>
+                <div class="logo-tag">{{#if subInstituicao}}{{subInstituicao}}{{else}}Campus Igarassu{{/if}}</div>
+            </div>
+            <div class="category-pill">{{#if subtitulo}}{{subtitulo}}{{else}}Certificado de Participação{{/if}}</div>
+        </div>
+
+        <div class="main-section">
+            <div class="title-area">
+                <div class="eyebrow">Declaração Oficial</div>
+                <h1>{{#if titulo}}{{titulo}}{{else}}Certificado{{/if}}</h1>
+            </div>
+
+            <div class="name-container">
+                <span class="nome">{{nome}}</span>
+            </div>
+
+            <div class="content-box">
+                <p>
+                    {{#if textoPersonalizado}}
+                        {{textoPersonalizado}}
+                    {{else}}
+                        Concluiu com sucesso sua participação no evento <strong>{{evento}}</strong>, realizado na data de <strong>{{data}}</strong>{{#if cargaHoraria}}, totalizando uma carga horária de <strong>{{cargaHoraria}}</strong>{{/if}}.
+                    {{/if}}
+                </p>
+            </div>
+
+            <div class="signatures-area">
+                <div class="signature-item">
+                    <div class="sig-line"></div>
+                    <div class="sig-name">{{#if assinaturaNome}}{{assinaturaNome}}{{else}}Liliane Alves{{/if}}</div>
+                    <div class="sig-role">{{#if assinaturaCargo}}{{assinaturaCargo}}{{else}}Coordenadora do Evento{{/if}}</div>
+                </div>
+                <div class="signature-item">
+                    <div class="sig-line"></div>
+                    <div class="sig-name">{{#if assinatura2Nome}}{{assinatura2Nome}}{{else}}Lincoln Tavares{{/if}}</div>
+                    <div class="sig-role">{{#if assinatura2Cargo}}{{assinatura2Cargo}}{{else}}Diretor Geral{{/if}}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div>Autenticidade verificável através da plataforma CertiEvents</div>
+            <div>Código: <span class="code-tag">{{certificadoId}}</span></div>
+        </div>
+    </div>
+</body>
+</html>
